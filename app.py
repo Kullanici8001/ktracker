@@ -1260,6 +1260,50 @@ def api_resolve():
     return jsonify({"resolved": resolve_media_url(url)})
 
 
+@app.route("/api/download")
+def api_download():
+    url = request.args.get("url", "").strip()
+    filename = request.args.get("filename", "audio.mp3").strip()
+    if not url:
+        return Response("Missing URL", status=400)
+
+    filename = re.sub(r'[\\/*?:"<>|]', "", filename)
+    if not filename.lower().endswith((".mp3", ".wav", ".m4a", ".flac", ".ogg", ".opus")):
+        filename += ".mp3"
+
+    resolved_url = resolve_media_url(url)
+
+    pillows_match = re.search(r"(?:pillows\.su|pillowcase\.su)/f/([a-zA-Z0-9_-]+)", resolved_url)
+    if pillows_match:
+        resolved_url = f"https://api.pillows.su/api/download/{pillows_match.group(1)}"
+
+    try:
+        req = requests.get(
+            resolved_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            },
+            stream=True,
+            timeout=30
+        )
+        if req.status_code != 200:
+            return redirect(resolved_url)
+
+        def generate():
+            for chunk in req.iter_content(chunk_size=65536):
+                if chunk:
+                    yield chunk
+
+        ctype = req.headers.get("Content-Type", "audio/mpeg")
+        resp = Response(generate(), mimetype=ctype)
+        resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as e:
+        print("Download proxy error:", e)
+        return redirect(resolved_url)
+
+
 _IMAGE_PROXY_CACHE: dict[str, tuple[bytes, str]] = {}
 
 @app.route("/api/image-proxy")

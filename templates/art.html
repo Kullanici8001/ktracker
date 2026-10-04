@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "macros.html" import header %}
+
+{% block title %}Art | KTracker{% endblock %}
+{% block description %}Art gallery — Google Sheets music tracker{% endblock %}
+
+{% block pagecss %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/unreleased.css') }}">
+<style>
+.ArtEra_era__pXHbZ {
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 12px 16px;
+  margin: 24px 20px 12px;
+  border-radius: 6px;
+}
+.ArtEra_artworks__mHvmA {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 0 20px 24px;
+}
+.Artwork_artwork__OQrLz {
+  background: var(--dark-secondary, #1e1e1e);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.Artwork_artwork__OQrLz:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+.Artwork_image__m7s6L {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+  background: #111;
+}
+.Artwork_content__TX3jg {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.Artwork_title__raw {
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+}
+.Artwork_meta__raw {
+  font-size: 12px;
+  color: #aaa;
+}
+.Artwork_notes__raw {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding:10px;text-align:center">
+  This site is dynamically generated from
+  <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}" target="_blank" rel="noopener">this Google Sheet</a>.
+  Content is not owned or managed by KTracker.
+</div>
+
+{{ header(sheet_id, section, page_title, tabs) }}
+
+<div class="unreleased_container__2SPrV">
+  {% if not eras %}
+  <div style="padding:60px 20px;text-align:center;color:lightgray;">
+    <p>No content found in the Art tab.</p>
+  </div>
+  {% else %}
+  {% for era in eras %}
+    {% if era.artworks %}
+    <div class="ArtEra_era__pXHbZ" style="background-color:{{ era.bg_color }};color:{{ era.text_color }}">
+      {{ era.era }}
+    </div>
+    <div class="ArtEra_artworks__mHvmA">
+      {% for art in era.artworks %}
+      <div class="Artwork_artwork__OQrLz">
+        {% if art.image %}
+        <a href="{{ art.link or art.image }}" target="_blank" rel="noopener">
+          <img class="Artwork_image__m7s6L" src="{{ art.image }}" alt="{{ art.title }}" loading="lazy">
+        </a>
+        {% else %}
+        <div class="Artwork_image__m7s6L" style="display:flex;align-items:center;justify-content:center;color:#666;font-size:13px;padding:16px;text-align:center;">
+          No Image
+        </div>
+        {% endif %}
+        <div class="Artwork_content__TX3jg">
+          <div class="Artwork_title__raw">{{ art.title }}</div>
+          <div class="Artwork_meta__raw">
+            {% if art.designer and art.designer != 'Unknown' %}<span>{{ art.designer }}</span> • {% endif %}
+            {% if art.type %}<span>{{ art.type }}</span>{% endif %}
+            {% if art.use %} • <span style="color:{% if art.use == 'Used' %}#4caf50{% else %}#ff9800{% endif %}">{{ art.use }}</span>{% endif %}
+          </div>
+          {% if art.notes %}
+          <div class="Artwork_notes__raw">{{ art.notes }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

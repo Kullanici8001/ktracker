@@ -1,0 +1,113 @@
+/* ── Orijinal global CSS (trackerhub.cx'ten alındı, Wayback yorumları temizlendi) ── */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  --dark-primary: rgb(12,12,12);
+  --dark-secondary: rgb(24,24,24);
+  --light-primary: white;
+  --light-secondary: lightgray;
+}
+
+details > summary { cursor: pointer; }
+details > summary:not(.arrow) { list-style: none; }
+details > summary:not(.arrow)::-webkit-details-marker { display: none; }
+
+@keyframes details-show {
+  0% { opacity: 0; transform: var(--details-translate, translateY(-.5em)); }
+}
+details[open] > :not(summary) { animation: details-show .15s ease-in-out; }
+
+html, body {
+  width: 100%; height: 100%;
+  padding: 0; margin: 0;
+  font-family: Inter, sans-serif;
+  color: var(--light-primary);
+  background-color: var(--dark-primary);
+  overflow: hidden;   /* body overflow hidden — scroll #scrollable içinde */
+  scroll-behavior: smooth;
+}
+#__next {
+  width: 100%; height: 100%;
+}
+
+* { box-sizing: border-box; }
+.twemoji { vertical-align: sub; }
+
+/* ── Player (stub – orijinal siteden, kullanılmayabilir) ── */
+.DownloadProgress_zipProgress__1ytyg { height: 4px; background-color: rgb(29,185,84); transition: width .5s ease-in-out; }
+.Menu_menu__dGGWo { position: absolute; min-width: 200px; max-width: 400px; padding: 8px; border-radius: 4px; background-color: var(--dark-secondary); box-shadow: 0 0 8px rgb(0 0 0/50%); z-index: 2; }
+.Menu_menuItem__Y3fvW { cursor: pointer; padding: 8px; border-radius: 4px; }
+.Menu_menuItem__Y3fvW:hover { background-color: #5865f2; }
+
+._app_viewport__qiA88 { height: 100%; display: grid; overflow: hidden; }
+._app_scrollable__CPTC5 { width: 100%; overflow: auto; scroll-behavior: smooth; }
+
+/* ── KTracker Header & Navigation (Always Visible) ── */
+.Header_header___G6og {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 28px;
+  background-color: var(--dark-secondary, rgb(24, 24, 24));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.Header_index__FE__u {
+  color: white;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.Header_logo__e8eyg {
+  border-radius: 6px;
+  margin-right: 12px;
+  vertical-align: middle;
+  width: 36px;
+  height: 36px;
+}
+
+.Header_title__0V7v_ {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+}
+
+.Header_links__rYnfM {
+  display: flex !important;
+  align-items: center;
+  gap: 18px;
+  font-size: 15px;
+  font-weight: 500;
+  flex-wrap: wrap;
+}
+
+.Header_links__rYnfM a {
+  color: var(--light-secondary, lightgray);
+  text-decoration: none;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.Header_links__rYnfM a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.Header_links__rYnfM a.nav-active {
+  color: #ffffff !important;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.Burger_burger__to1fE {
+  display: none !important;
+}

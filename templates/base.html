@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}KTracker{% endblock %}</title>
+  <meta name="description" content="{% block description %}Google Sheets-based music tracker viewer{% endblock %}">
+  <meta name="theme-color" content="#2ca869">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+  {% block pagecss %}{% endblock %}
+  <style>
+    /* Mini Audio Player (Global Sticky Bottom) */
+    #global-mini-player {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: var(--dark-secondary, #1b1b1b);
+      padding: 10px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
+      align-items: center;
+      gap: 14px;
+    }
+    #player-close-btn {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+    }
+    #player-close-btn:hover {
+      color: #fff;
+    }
+    #player-info-box {
+      flex: 1;
+      min-width: 0;
+    }
+    #player-track-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #player-track-artist {
+      font-size: 12px;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    #global-audio-el {
+      flex: 2;
+      min-width: 220px;
+      max-width: 440px;
+      height: 34px;
+      outline: none;
+    }
+    #player-external-link {
+      color: var(--dark-primary, #6ea8fe);
+      font-size: 12.5px;
+      text-decoration: none;
+      white-space: nowrap;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    #player-external-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+<div id="__next">
+  <div class="_app_viewport__qiA88">
+    <div id="scrollable" class="_app_scrollable__CPTC5">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<!-- Global Mini Audio Player -->
+<div id="global-mini-player">
+  <button id="player-close-btn" onclick="closePlayer()" title="Close">✕</button>
+  <div id="player-info-box">
+    <div id="player-track-name">Loading Track...</div>
+    <div id="player-track-artist"></div>
+  </div>
+  <audio id="global-audio-el" controls preload="auto"></audio>
+  <a id="player-external-link" href="#" target="_blank" rel="noopener">Open Link ↗</a>
+</div>
+
+<script>
+// ── Global Mouse Coordinates (For Tooltips) ──
+document.addEventListener('mousemove', function(e) {
+  document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+
+// ── Audio Player & imgur.gg / pillows.su API Resolver ──
+function closePlayer() {
+  const p = document.getElementById('global-mini-player');
+  const a = document.getElementById('global-audio-el');
+  a.pause();
+  a.src = '';
+  p.style.display = 'none';
+}
+
+const AUDIO_EXTS = /\.(mp3|ogg|wav|flac|m4a|aac|opus)(\?.*)?$/i;
+
+function isPlayableAudio(url) {
+  if (!url) return false;
+  if (AUDIO_EXTS.test(url)) return true;
+  return ['discord', 'discordapp', 'gofile', 'catbox', 'pixeldrain', 'pillowcase', 'pillows'].some(h => url.includes(h));
+}
+
+async function playOrOpen(url, trackEl) {
+  if (!url || url === '#' || url.toLowerCase() === 'n/a') return;
+
+  const player = document.getElementById('global-mini-player');
+  const audio = document.getElementById('global-audio-el');
+  const nameEl = document.getElementById('player-track-name');
+  const artistEl = document.getElementById('player-track-artist');
+  const extLink = document.getElementById('player-external-link');
+
+  let title = trackEl?.querySelector('span')?.textContent?.trim() || 'Audio Track';
+  let artists = trackEl?.querySelector('.Track_artists__94fRt')?.textContent?.trim() || '';
+
+  extLink.href = url;
+  nameEl.textContent = title + ' (Loading...)';
+  artistEl.textContent = artists;
+  player.style.display = 'flex';
+
+  let streamUrl = url;
+
+  // Resolve via backend to bypass CORS
+  try {
+    const res = await fetch('/api/resolve?url=' + encodeURIComponent(url));
+    if (res.ok) {
+      const data = await res.json();
+      if (data.resolved && data.resolved !== url) {
+        streamUrl = data.resolved;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend resolve error:', err);
+  }
+
+  // pillows.su / pillowcase.su fallback (if backend didn't resolve it)
+  const pillowsMatch = streamUrl.match(/(?:pillows\.su|pillowcase\.su)\/f\/([a-zA-Z0-9_-]+)/);
+  if (pillowsMatch) {
+    streamUrl = `https://api.pillows.su/api/download/${pillowsMatch[1]}`;
+  }
+
+  const imgurMatch = url.match(/imgur\.gg\/[a-zA-Z0-9_-]+/);
+  const canPlay = isPlayableAudio(streamUrl) || imgurMatch || pillowsMatch;
+
+  if (canPlay) {
+    nameEl.textContent = title;
+    artistEl.textContent = artists;
+    audio.src = streamUrl;
+    audio.play().catch(e => {
+      console.log('Autoplay was prevented by browser:', e);
+    });
+  } else {
+    // Open non-audio external links in new tab
+    player.style.display = 'none';
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
+// ── Global Delegated Click Listener ──
+document.addEventListener('click', function(e) {
+  const trackEl = e.target.closest('.Track_track__b2YEg[data-audio-url]');
+  if (!trackEl) return;
+  const url = trackEl.getAttribute('data-audio-url');
+  if (url && url !== '#' && url.toLowerCase() !== 'n/a') {
+    e.preventDefault();
+    playOrOpen(url, trackEl);
+  }
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

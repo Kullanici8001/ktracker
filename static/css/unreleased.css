@@ -1,0 +1,79 @@
+/* ── Orijinal Unreleased/Best/Tracklists sayfası CSS (trackerhub.cx b26f0bc97d5c2fb5.css) ── */
+
+.Tooltip_tooltip__awbme:before {
+  position: fixed; display: none;
+  content: attr(data-content);
+  left: var(--mouse-x, 0); top: var(--mouse-y, 0);
+  min-width: 200px; max-width: 400px;
+  padding: 8px; border-radius: 4px;
+  transform: translate(8px, -8px);
+  background-color: var(--dark-secondary);
+  box-shadow: 0 0 8px rgb(0 0 0/50%);
+  z-index: 1;
+}
+@media (hover: hover) {
+  .Tooltip_tooltip__awbme:hover:before { display: block; white-space: pre-wrap; }
+}
+
+.Track_track__b2YEg {
+  color: var(--light-primary); gap: 8px; padding: 8px; border-radius: 4px;
+  font-size: 16px; display: flex; align-items: center;
+  cursor: default; user-select: none;
+}
+.Track_track__b2YEg.has-audio { cursor: pointer; }
+.Track_track__b2YEg:hover { background-color: rgba(255,255,255,.05); }
+.Track_track__b2YEg.has-audio:hover { background-color: rgba(255,255,255,.12); }
+.Track_play__SDbIw { display: none !important; }
+.Track_track__b2YEg.has-audio:hover > .Track_play__SDbIw { display: block !important; }
+.Track_aliases__yo_m5, .Track_artists__94fRt, .Track_length__KUiUO { color: var(--light-secondary); }
+.Track_length__KUiUO { margin-left: auto; }
+.Track_tag__bK7_v { padding: 4px; margin-left: 4px; border-radius: 4px; font-weight: 700; font-size: 14px; }
+
+.SearchResults_results__6NlVJ { margin: 20px; padding: 8px; border-radius: 4px; background-color: var(--dark-secondary); }
+
+.TrackGroup_track_group__UFBSt { padding: 8px; border-radius: 4px; }
+.TrackGroup_track_group__UFBSt:hover { background-color: rgba(255,255,255,.1); }
+.TrackGroup_tracks__Vqn6H { margin-left: 32px; }
+
+.EraCard_era__RaoRE { margin: 20px; border-radius: 4px; background-color: var(--dark-secondary); }
+.EraCard_era__RaoRE > summary {
+  display: flex; gap: 20px; padding: 20px; border-radius: 4px;
+  user-select: none;
+}
+.EraCard_cover__huWx9 { height: auto; min-width: 136px; max-height: 136px; box-shadow: 0 4px 60px rgb(0 0 0/50%); border-radius: 4px; }
+.EraCard_title__a_skU { font-size: 32px; font-weight: 700; }
+.EraCard_description__jXVzh { font-size: 14px; }
+@media screen and (max-width: 600px) {
+  .EraCard_era__RaoRE > summary { text-align: center; align-items: center; flex-direction: column; }
+  .EraCard_description__jXVzh { display: none; }
+}
+.EraCard_tracks__UJDwG { padding: 16px; }
+.EraCard_subera__eqTaI { background-color: var(--light-primary); color: black; padding: 8px; border-radius: 4px; font-weight: 700; }
+
+.Footer_footer__yl3k1 { margin: 20px; text-align: center; }
+.Footer_icon__dgf9c { height: 40px; vertical-align: sub; }
+.Footer_list__yYktu { padding: 0; list-style: inside; text-align: center; }
+
+.Links_links__UToMx { gap: 16px; display: flex; align-items: center; justify-content: center; }
+.Links_links__UToMx, .Links_links__UToMx > a { text-decoration: none; color: var(--light-secondary); }
+.Links_links__UToMx > a:hover { text-decoration: underline; }
+.Links_icon__P49t5 { font-size: 20px; vertical-align: sub; }
+@media screen and (max-width: 1200px) { .Links_icon__P49t5 { font-size: 40px; } }
+
+.Menu_menu__hVSEq {
+  position: absolute; width: 100%; height: 100%;
+  background-color: var(--dark-secondary);
+  animation: Menu_slide-left__XFwdS .5s ease-in-out; z-index: 3;
+}
+@keyframes Menu_slide-left__XFwdS { 0% { left: 100%; } to { left: 0; } }
+.Menu_links__NoPNk { height: 100%; font-size: 32px; flex-direction: column; }
+.Menu_closeIcon__xXsBK { position: absolute; top: 24px; right: 24px; font-size: 32px; }
+
+.Search_search_container__ALRBY { margin: 20px; }
+.Search_search__53TKp {
+  width: 100%; color: white; background-color: var(--dark-secondary);
+  padding: 0 12px; font-size: 22px; border-radius: 4px;
+  box-shadow: 0 4px 60px rgb(0 0 0/50%); border: none; height: 70px; outline: none;
+}
+
+.unreleased_container__2SPrV { margin: 0 auto; width: 100%; max-width: 1000px; }

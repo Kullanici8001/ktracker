@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "macros.html" import header %}
+
+{% block title %}Tracklists | KTracker{% endblock %}
+{% block description %}Tracklists — Google Sheets music tracker{% endblock %}
+
+{% block pagecss %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/unreleased.css') }}">
+<style>
+.TracklistEra_era__W7eJP {
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 12px 16px;
+  margin: 24px 20px 12px;
+  border-radius: 6px;
+}
+.TracklistEra_tracklists__uieeo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 20px 24px;
+}
+.Tracklist_tracklist__1Gra0 {
+  background: var(--dark-secondary, #1e1e1e);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.Tracklist_header__raw {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+.Tracklist_trackTitle__qHH1D {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+}
+.Tracklist_meta__raw {
+  font-size: 12px;
+  color: #aaa;
+}
+.Tracklist_tracks__XYBnW {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #ddd;
+  white-space: pre-line;
+  font-family: inherit;
+}
+.Tracklist_image__raw {
+  margin-top: 12px;
+  max-width: 400px;
+  border-radius: 6px;
+  display: block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding:10px;text-align:center">
+  This site is dynamically generated from
+  <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}" target="_blank" rel="noopener">this Google Sheet</a>.
+  Content is not owned or managed by KTracker.
+</div>
+
+{{ header(sheet_id, section, page_title, tabs) }}
+
+<div class="unreleased_container__2SPrV">
+  {% if not eras %}
+  <div style="padding:60px 20px;text-align:center;color:lightgray;">
+    <p>No content found in the Tracklists tab.</p>
+  </div>
+  {% else %}
+  {% for era in eras %}
+    {% if era.tracklists %}
+    <div class="TracklistEra_era__W7eJP" style="background-color:{{ era.bg_color }};color:{{ era.text_color }}">
+      {{ era.era }}
+    </div>
+    <div class="TracklistEra_tracklists__uieeo">
+      {% for item in era.tracklists %}
+      <div class="Tracklist_tracklist__1Gra0">
+        <div class="Tracklist_header__raw">
+          <div class="Tracklist_trackTitle__qHH1D">{{ item.name }}</div>
+          <div class="Tracklist_meta__raw">
+            {% if item.date %}<span>{{ item.date }}</span> • {% endif %}
+            {% if item.quality %}<span>{{ item.quality }}</span> • {% endif %}
+            {% if item.source %}<span>{{ item.source }}</span>{% endif %}
+          </div>
+        </div>
+        <div class="Tracklist_tracks__XYBnW">{{ item.tracklist }}</div>
+        {% if item.image %}
+        <a href="{{ item.link or item.image }}" target="_blank" rel="noopener">
+          <img class="Tracklist_image__raw" src="{{ item.image }}" alt="{{ item.name }}" loading="lazy">
+        </a>
+        {% elif item.link %}
+        <div style="margin-top:8px;">
+          <a href="{{ item.link }}" target="_blank" rel="noopener" style="font-size:12px;color:var(--dark-primary, #6ea8fe);">Kaynak / Resim Linki ↗</a>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% from "macros.html" import header, track_row %}
+
+{% block title %}{{ page_title }} | KTracker{% endblock %}
+{% block description %}{{ page_title }} — Google Sheets music tracker{% endblock %}
+
+{% block pagecss %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/unreleased.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="padding:10px;text-align:center">
+  This site is dynamically generated from
+  <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}" target="_blank" rel="noopener">this Google Sheet</a>.
+  Content is not owned or managed by KTracker.
+</div>
+
+{{ header(sheet_id, section, page_title, tabs) }}
+
+<div class="unreleased_container__2SPrV">
+  <div class="Search_search_container__ALRBY">
+    <input id="search-input" type="text" placeholder="Search"
+           class="Search_search__53TKp"
+           autocomplete="off" spellcheck="false">
+  </div>
+
+  <!-- Search results -->
+  <div id="search-results" class="SearchResults_results__6NlVJ" style="display:none;">
+    <div id="search-results-inner"></div>
+  </div>
+
+  {% if not eras %}
+  <div style="padding:60px 20px;text-align:center;color:lightgray;">
+    <p>No content found in this tab.</p>
+    <p style="font-size:13px;margin-top:8px;opacity:.7;">
+      Make sure the Google Sheet is public and the correct tab is selected.
+    </p>
+  </div>
+  {% endif %}
+
+  {% for era in eras %}
+  <details class="EraCard_era__RaoRE">
+    <summary style="background-color:{{ era.bg_color }}">
+      {% if era.cover %}
+      <img alt="{{ era.era }} cover" loading="lazy"
+           width="136" height="136"
+           class="EraCard_cover__huWx9"
+           src="{{ era.cover }}">
+      {% endif %}
+      <div>
+        <div class="EraCard_title__a_skU">
+          <span style="color:{{ era.text_color }}">{{ era.era }}</span>
+        </div>
+        {% if era.description %}
+        <div class="EraCard_description__jXVzh">
+          <span style="color:{{ era.text_color }}">{{ era.description }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </summary>
+    <div class="EraCard_tracks__UJDwG">
+      {% for track in era.tracks %}
+      {{ track_row(track) }}
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+
+</div>
+
+<div class="Footer_footer__yl3k1">
+  KTracker — Content is not owned by this site.
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Search ──
+const searchInput  = document.getElementById('search-input');
+const resultsBox   = document.getElementById('search-results');
+const resultsInner = document.getElementById('search-results-inner');
+
+if (searchInput) {
+  const allTracks = Array.from(document.querySelectorAll('.EraCard_tracks__UJDwG .Track_track__b2YEg'));
+
+  searchInput.addEventListener('input', function() {
+    const q = this.value.trim().toLowerCase();
+    if (!q) { resultsBox.style.display = 'none'; return; }
+
+    const hits = allTracks.filter(el => {
+      const name    = el.querySelector('span')?.textContent?.toLowerCase() || '';
+      const artists = el.querySelector('.Track_artists__94fRt')?.textContent?.toLowerCase() || '';
+      const notes   = (el.dataset.content || '').toLowerCase();
+      return name.includes(q) || artists.includes(q) || notes.includes(q);
+    });
+
+    resultsInner.innerHTML = '';
+    if (!hits.length) {
+      resultsInner.innerHTML = '<p style="padding:8px;color:lightgray">No results found.</p>';
+    } else {
+      hits.slice(0, 60).forEach(el => resultsInner.appendChild(el.cloneNode(true)));
+    }
+    resultsBox.style.display = 'block';
+  });
+}
+</script>
+{% endblock %}

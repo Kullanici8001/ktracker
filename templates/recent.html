@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "macros.html" import header, track_row %}
+
+{% block title %}Recent | KTracker{% endblock %}
+{% block description %}Recent tracks — Google Sheets music tracker{% endblock %}
+
+{% block pagecss %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/recent.css') }}">
+{% endblock %}
+
+{% block content %}
+<div style="padding:10px;text-align:center">
+  This site is dynamically generated from
+  <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}" target="_blank" rel="noopener">this Google Sheet</a>.
+  Content is not owned or managed by KTracker.
+</div>
+
+{{ header(sheet_id, section, page_title, tabs) }}
+
+<div class="unreleased_container__2SPrV">
+
+  {% if not eras %}
+  <div style="padding:60px 20px;text-align:center;color:lightgray;">
+    <p>No content found in the Recent tab.</p>
+  </div>
+  {% endif %}
+
+  {% for era in eras %}
+  <details open class="EraGroup_era__PTfzH">
+    <summary class="arrow"
+             style="color:{{ era.text_color }};background-color:{{ era.bg_color }}">
+      <span style="color:{{ era.text_color }}">{{ era.era }}</span>
+    </summary>
+    <div class="EraGroup_tracks__h3q9r">
+      {% for track in era.tracks %}
+      {{ track_row(track) }}
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+
+</div>
+
+<div class="Footer_footer__yl3k1">
+  KTracker — Content is not owned by this site.
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('mousemove', function(e) {
+  document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
+  document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+});
+</script>
+{% endblock %}

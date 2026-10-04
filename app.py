@@ -5,7 +5,7 @@ import re
 import requests
 import zipfile
 import xml.etree.ElementTree as ET
-from flask import Flask, render_template, redirect, url_for, request, jsonify, abort
+from flask import Flask, render_template, redirect, url_for, request, jsonify, abort, Response
 
 app = Flask(__name__)
 
@@ -317,7 +317,7 @@ def resolve_media_url(url: str) -> str:
         if p_m:
             resolved = f"https://api.pillows.su/api/download/{p_m.group(1)}"
 
-    # 2. ibb.co/<id>
+    # 3. ibb.co/<id>
     elif "ibb.co/" in url and not re.search(r"\.(png|jpg|jpeg|webp|gif)$", url, re.I):
         try:
             res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
@@ -327,6 +327,11 @@ def resolve_media_url(url: str) -> str:
                     resolved = og_m.group(1)
         except Exception:
             pass
+
+    # 4. Google Sheets in-cell images (sheets-images-rt / googleusercontent) which block cross-origin embedding via CORP: same-site
+    if "sheets-images-rt" in resolved or "googleusercontent.com" in resolved:
+        import urllib.parse
+        resolved = f"/api/image-proxy?url={urllib.parse.quote(resolved, safe='')}"
 
     _MEDIA_CACHE[url] = resolved
     return resolved
@@ -410,7 +415,7 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
         return _COLOR_CACHE[sheet_id]
 
     era_colors: dict[str, dict[str, str]] = {}
-    xlsx_images = get_xlsx_cell_images(sheet_id)
+    xlsx_images = {}
     try:
         fields = "sheets.properties.title,sheets.data.rowData.values(formattedValue,hyperlink,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,userEnteredValue.formulaValue)"
         api_url = (
@@ -999,12 +1004,42 @@ _FALLBACK_PALETTE = [
     {"bg": "rgb(104,110,250)","fg": "rgb(255,255,255)"},
 ]
 
+_TRACKERAPI_ERA_IMAGES_CACHE: dict[str, dict[str, str]] = {}
+
+def get_trackerapi_era_images(sheet_id: str) -> dict[str, str]:
+    """
+    TrackerAPI (https://trackerapi.artistgrid.cx/sh/{sheet_id}/) üzerinden
+    tüm eraların cover_art / image görsellerini çeker ve {era_name.lower(): image_url} döndürür.
+    """
+    if sheet_id in _TRACKERAPI_ERA_IMAGES_CACHE:
+        return _TRACKERAPI_ERA_IMAGES_CACHE[sheet_id]
+
+    images: dict[str, str] = {}
+    try:
+        url = f"https://trackerapi.artistgrid.cx/sh/{sheet_id}/"
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=6)
+        if r.status_code == 200:
+            data = r.json()
+            for era in data.get("eras", []):
+                name = era.get("name", "").strip().lower()
+                img = era.get("cover_art") or era.get("image") or ""
+                if name and img:
+                    images[name] = img
+    except Exception as e:
+        print(f"TrackerAPI cover fetch notice ({sheet_id}):", e)
+
+    _TRACKERAPI_ERA_IMAGES_CACHE[sheet_id] = images
+    return images
+
+
 def apply_styling(sheet_id: str, eras: list[dict]):
     """
     Era bannerındaki orijinal kapakları ve hücre renklerini uygular.
-    Kapak görseli hangi kolonda (E, F, D, G vb.) olursa olsun dinamik tespit edilir.
+    Kapak görseli Google Sheets API, XLSX in-cell drawings ve TrackerAPI ile
+    art arda taranarak eksiksiz çekilir.
     """
     colors = get_sheet_era_colors(sheet_id)
+    tracker_images = get_trackerapi_era_images(sheet_id)
 
     for i, era in enumerate(eras):
         k = era["era"].strip().lower()
@@ -1020,6 +1055,18 @@ def apply_styling(sheet_id: str, eras: list[dict]):
             fb = _FALLBACK_PALETTE[i % len(_FALLBACK_PALETTE)]
             era["bg_color"] = fb["bg"]
             era["text_color"] = fb["fg"]
+
+        # 2. Cover görseli: Bannerdan gelmediyse TrackerAPI'den tamamla
+        if not era.get("cover"):
+            if k in tracker_images:
+                era["cover"] = resolve_media_url(tracker_images[k])
+            else:
+                clean_k = re.sub(r'\[.*?\]|\(.*?\)', '', k).strip()
+                for t_name, t_img in tracker_images.items():
+                    clean_t = re.sub(r'\[.*?\]|\(.*?\)', '', t_name).strip()
+                    if (clean_k and clean_k == clean_t) or k in t_name or t_name in k:
+                        era["cover"] = resolve_media_url(t_img)
+                        break
 
 
 def get_tracker_data(sheet_id: str, tab_title: str) -> list[dict]:
@@ -1179,6 +1226,50 @@ def go():
 def api_resolve():
     url = request.args.get("url", "").strip()
     return jsonify({"resolved": resolve_media_url(url)})
+
+
+_IMAGE_PROXY_CACHE: dict[str, tuple[bytes, str]] = {}
+
+@app.route("/api/image-proxy")
+def api_image_proxy():
+    url = request.args.get("url", "").strip()
+    if not url:
+        return Response("Missing URL", status=400)
+
+    if url in _IMAGE_PROXY_CACHE:
+        content, ctype = _IMAGE_PROXY_CACHE[url]
+        resp = Response(content, mimetype=ctype)
+        resp.headers["Cache-Control"] = "public, max-age=604800, immutable"
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+        return resp
+
+    try:
+        r = requests.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            },
+            timeout=15,
+        )
+        if r.status_code == 200:
+            ctype = r.headers.get("Content-Type", "image/jpeg")
+            content = r.content
+            if len(_IMAGE_PROXY_CACHE) > 500:
+                _IMAGE_PROXY_CACHE.pop(next(iter(_IMAGE_PROXY_CACHE)))
+            _IMAGE_PROXY_CACHE[url] = (content, ctype)
+
+            resp = Response(content, mimetype=ctype)
+            resp.headers["Cache-Control"] = "public, max-age=604800, immutable"
+            resp.headers["Access-Control-Allow-Origin"] = "*"
+            resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+            return resp
+        else:
+            return Response(f"Remote error: {r.status_code}", status=r.status_code)
+    except Exception as e:
+        print(f"Image proxy error for {url}:", e)
+        return Response(str(e), status=500)
 
 
 if __name__ == "__main__":

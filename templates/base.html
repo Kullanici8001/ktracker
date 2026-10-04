@@ -7,7 +7,7 @@
   <title>{% block title %}KTracker{% endblock %}</title>
   <meta name="description" content="{% block description %}Google Sheets-based music tracker viewer{% endblock %}">
   <meta name="theme-color" content="#2ca869">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}?v=2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
   {% block pagecss %}{% endblock %}
   <style>
     /* Mini Audio Player (Global Sticky Bottom) */
@@ -124,6 +124,11 @@
       a.pause();
       a.src = '';
       p.style.display = 'none';
+      clearPlayingTrack();
+      try {
+        localStorage.removeItem('ktracker_current_playing_track');
+        localStorage.removeItem('ktracker_played_tracks');
+      } catch (e) { }
     }
 
     const AUDIO_EXTS = /\.(mp3|ogg|wav|flac|m4a|aac|opus)(\?.*)?$/i;
@@ -134,37 +139,42 @@
       return ['discord', 'discordapp', 'gofile', 'catbox', 'pixeldrain', 'pillowcase', 'pillows'].some(h => url.includes(h));
     }
 
-    // ── Played Tracks Cache ──
-    function getPlayedTracks() {
+    // ── Current Playing Track Indicator (Only 1 track is green at a time) ──
+    function getCurrentPlayingTrack() {
       try {
-        return JSON.parse(localStorage.getItem('ktracker_played_tracks')) || [];
+        const item = localStorage.getItem('ktracker_current_playing_track');
+        return item ? JSON.parse(item) : null;
       } catch (e) {
-        return [];
+        return null;
       }
+    }
+
+    function clearPlayingTrack() {
+      document.querySelectorAll('.Track_track__b2YEg.is-played, .track-title.is-played').forEach(el => {
+        el.classList.remove('is-played');
+      });
     }
 
     function markPlayed(url, title) {
       if (!url && !title) return;
       try {
-        let played = getPlayedTracks();
-        let changed = false;
-        if (url && !played.includes(url)) {
-          played.push(url);
-          changed = true;
-        }
-        if (title && !played.includes(title)) {
-          played.push(title);
-          changed = true;
-        }
-        if (changed) {
-          localStorage.setItem('ktracker_played_tracks', JSON.stringify(played));
-        }
+        localStorage.setItem('ktracker_current_playing_track', JSON.stringify({
+          url: url || '',
+          title: title || ''
+        }));
+        localStorage.removeItem('ktracker_played_tracks');
       } catch (e) { }
 
       applyPlayedState(url, title);
     }
 
     function applyPlayedState(url, title) {
+      // 1. Remove is-played from all previously active tracks (only 1 track can be green)
+      clearPlayingTrack();
+
+      if (!url && !title) return;
+
+      // 2. Add is-played to the currently active track
       document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
         const elUrl = el.getAttribute('data-audio-url');
         const titleEl = el.querySelector('.track-title') || el.querySelector('span');
@@ -180,22 +190,11 @@
     }
 
     function restorePlayedTracks() {
-      const played = getPlayedTracks();
-      if (!played.length) return;
-      const playedSet = new Set(played);
-
-      document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
-        const elUrl = el.getAttribute('data-audio-url');
-        const titleEl = el.querySelector('.track-title') || el.querySelector('span');
-        const elTitle = (el.getAttribute('data-track-name') || titleEl?.textContent || '').trim();
-
-        if ((elUrl && playedSet.has(elUrl)) || (elTitle && playedSet.has(elTitle))) {
-          el.classList.add('is-played');
-          if (titleEl) {
-            titleEl.classList.add('is-played');
-          }
-        }
-      });
+      const current = getCurrentPlayingTrack();
+      if (!current) return;
+      if (current.url || current.title) {
+        applyPlayedState(current.url, current.title);
+      }
     }
 
     if (document.readyState === 'loading') {
@@ -205,8 +204,11 @@
     }
 
     const playedObserver = new MutationObserver(() => {
-      if (document.querySelector('.track-title')) {
-        restorePlayedTracks();
+      const current = getCurrentPlayingTrack();
+      if (current && (current.url || current.title)) {
+        if (!document.querySelector('.track-title.is-played')) {
+          applyPlayedState(current.url, current.title);
+        }
       }
     });
 

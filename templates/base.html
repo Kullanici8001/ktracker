@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
   {% block pagecss %}{% endblock %}
   <style>
-    /* Mini Audio Player (Global Sticky Bottom) */
     #global-mini-player {
       display: none;
       position: fixed;
@@ -86,7 +85,6 @@
   </div>
 </div>
 
-<!-- Global Mini Audio Player -->
 <div id="global-mini-player">
   <button id="player-close-btn" onclick="closePlayer()" title="Close">✕</button>
   <div id="player-info-box">
@@ -98,13 +96,11 @@
 </div>
 
 <script>
-// ── Global Mouse Coordinates (For Tooltips) ──
 document.addEventListener('mousemove', function(e) {
   document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
   document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
 });
 
-// ── Audio Player & imgur.gg / pillows.su API Resolver ──
 function closePlayer() {
   const p = document.getElementById('global-mini-player');
   const a = document.getElementById('global-audio-el');
@@ -153,7 +149,6 @@ async function playOrOpen(url, trackEl) {
     console.warn('Backend resolve error:', err);
   }
 
-  // pillows.su / pillowcase.su fallback (if backend didn't resolve it)
   const pillowsMatch = streamUrl.match(/(?:pillows\.su|pillowcase\.su)\/f\/([a-zA-Z0-9_-]+)/);
   if (pillowsMatch) {
     streamUrl = `https://api.pillows.su/api/download/${pillowsMatch[1]}`;
@@ -170,13 +165,11 @@ async function playOrOpen(url, trackEl) {
       console.log('Autoplay was prevented by browser:', e);
     });
   } else {
-    // Open non-audio external links in new tab
     player.style.display = 'none';
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
 
-// ── Global Delegated Click Listener ──
 document.addEventListener('click', function(e) {
   const trackEl = e.target.closest('.Track_track__b2YEg[data-audio-url]');
   if (!trackEl) return;

@@ -61,11 +61,5 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-document.addEventListener('mousemove', function(e) {
-  document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
-  document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
-});
-</script>
-{% endblock %}
+{% block scripts %}{% endblock %}
+

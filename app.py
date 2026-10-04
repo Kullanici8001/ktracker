@@ -5,6 +5,7 @@ import re
 import requests
 import zipfile
 import xml.etree.ElementTree as ET
+import unicodedata
 from flask import Flask, render_template, redirect, url_for, request, jsonify, abort, Response
 
 app = Flask(__name__)
@@ -585,20 +586,51 @@ def parse_name_field(raw: str) -> tuple[str, str, str, list[str]]:
     return title, artists, aliases, aliases_list
 
 
+def clean_leading_symbols(s: str) -> str:
+    """
+    Strips leading emojis, medals, stars, icons, and non-alphanumeric symbols from the beginning of a title.
+    Examples:
+      '⭐ The Garden [V10]' -> 'The Garden [V10]'
+      '🥇 Blame Game [V5]' -> 'Blame Game [V5]'
+      '🏆 Song 3131 [V4]' -> 'Song 3131 [V4]'
+      '✨ Song 3131 [V5]' -> 'Song 3131 [V5]'
+      '🤖 HEIL HITLER [V35]' -> 'HEIL HITLER [V35]'
+    """
+    if not s:
+        return ""
+    s = s.strip()
+    idx = 0
+    while idx < len(s):
+        ch = s[idx]
+        cat = unicodedata.category(ch)
+        if cat.startswith("S") or cat.startswith("C") or cat.startswith("Z") or ch in " \t\r\n\ufe0f":
+            idx += 1
+        elif ch in "★☆⭐✨🏆🥇🥈🥉🤖🔥💎👑🐐":
+            idx += 1
+        else:
+            break
+    res = s[idx:].strip()
+    return res if res else s
+
+
 def extract_base_title(title: str) -> str:
     """
-    Extracts base song title by stripping version indicators like [V1], [V27], (V1), etc.
+    Extracts base song title by:
+    1. Stripping leading emojis, medals, stars, symbols, and leading/trailing whitespace.
+    2. Stripping version indicators like [V1], [V27], (V1), etc.
     Examples:
-      'Title 3131 [V1]'         -> 'Title 3131'
+      '⭐ The Garden [V10]'     -> 'The Garden'
+      '🥇 Blame Game [V5]'     -> 'Blame Game'
+      '🏆 Song 3131 [V4]'      -> 'Song 3131'
+      '✨ Song 3131 [V5]'      -> 'Song 3131'
       'Ghetto University [V27]' -> 'Ghetto University'
       'All Of The Lights [V31]' -> 'All Of The Lights'
-      'Eyes Closed [V1]'        -> 'Eyes Closed'
     """
-    t = title.strip()
+    t = clean_leading_symbols(title)
     t = re.sub(r"\s*\[\s*v?\d+[^\]]*\]\s*$", "", t, flags=re.IGNORECASE)
     t = re.sub(r"\s*\(\s*v?\d+\s*\)\s*$", "", t, flags=re.IGNORECASE)
     t = t.strip()
-    return t if t else title
+    return t if t else clean_leading_symbols(title)
 
 
 def is_same_song_group(leader: dict, candidate: dict) -> bool:

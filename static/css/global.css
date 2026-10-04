@@ -18,6 +18,28 @@ details > summary:not(.arrow)::-webkit-details-marker { display: none; }
 }
 details[open] > :not(summary) { animation: details-show .15s ease-in-out; }
 
+summary.TrackGroup_track_group__UFBSt,
+.TrackGroup_track_group__UFBSt {
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: normal !important;
+  display: list-item;
+}
+.TrackGroup_track_group__UFBSt:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.TrackGroup_tracks__Vqn6H {
+  margin-left: 32px;
+}
+
+/* Played track styling: only title turns #1C8324, other text stays normal */
+.track-title.is-played,
+.Track_track__b2YEg.is-played .track-title {
+  color: #1C8324 !important;
+}
+
 html, body {
   width: 100%; height: 100%;
   padding: 0; margin: 0;

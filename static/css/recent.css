@@ -30,7 +30,8 @@
   transform: translate(8px, -8px);
   background-color: var(--dark-secondary);
   box-shadow: 0 0 8px rgb(0 0 0/50%);
-  z-index: 1;
+  z-index: 1000;
+  pointer-events: none;
 }
 @media (hover: hover) {
   .Tooltip_tooltip__awbme:hover:before { display: block; white-space: pre-wrap; }
@@ -47,6 +48,17 @@
 .Track_aliases__yo_m5, .Track_artists__94fRt, .Track_length__KUiUO { color: var(--light-secondary); }
 .Track_length__KUiUO { margin-left: auto; }
 .Track_tag__bK7_v { padding: 4px; margin-left: 4px; border-radius: 4px; font-weight: 700; font-size: 14px; }
+
+summary.TrackGroup_track_group__UFBSt,
+.TrackGroup_track_group__UFBSt { padding: 8px; border-radius: 4px; cursor: pointer; user-select: none; font-weight: normal !important; display: list-item; }
+.TrackGroup_track_group__UFBSt:hover { background-color: rgba(255,255,255,.1); }
+.TrackGroup_tracks__Vqn6H { margin-left: 32px; }
+
+/* Played track styling */
+.track-title.is-played,
+.Track_track__b2YEg.is-played .track-title {
+  color: #1C8324 !important;
+}
 
 /* Recent-specific */
 .EraGroup_era__PTfzH { margin: 20px; border-radius: 4px; background-color: var(--dark-secondary); }

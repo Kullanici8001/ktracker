@@ -189,22 +189,6 @@
       gap: 16px;
     }
 
-    #player-external-link {
-      color: var(--dark-primary, #6ea8fe);
-      font-size: 12.5px;
-      text-decoration: none;
-      white-space: nowrap;
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.05);
-      transition: background 0.15s;
-    }
-
-    #player-external-link:hover {
-      background: rgba(255, 255, 255, 0.15);
-      text-decoration: none;
-    }
-
     .player-volume-wrap {
       display: flex;
       align-items: center;
@@ -352,7 +336,6 @@
 
     <!-- Right: Volume & Actions -->
     <div class="Player_right__actions">
-      <a id="player-external-link" href="#" target="_blank" rel="noopener" title="Open Original Link">Open Link ↗</a>
       <div class="player-volume-wrap">
         <button id="player-vol-btn" class="player-btn" title="Mute/Unmute" type="button">
           <svg id="player-vol-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -593,7 +576,6 @@
 
       const nameEl = document.getElementById('player-track-name');
       const artistEl = document.getElementById('player-track-artist');
-      const extLink = document.getElementById('player-external-link');
       const coverImg = document.getElementById('player-cover-img');
       const coverPlaceholder = document.getElementById('player-cover-placeholder');
 
@@ -611,7 +593,6 @@
         coverPlaceholder.style.display = 'flex';
       }
 
-      extLink.href = url;
       nameEl.textContent = title + ' (Loading...)';
       artistEl.textContent = artists;
       customPlayerEl.style.display = 'grid';
@@ -873,27 +854,21 @@
       if (menu) menu.style.display = 'none';
     });
 
-    document.getElementById('ctx-download')?.addEventListener('click', async function () {
+    document.getElementById('ctx-download')?.addEventListener('click', function () {
       if (!ctxTargetTrack) return;
       const url = ctxTargetTrack.getAttribute('data-audio-url');
+      const title = (ctxTargetTrack.getAttribute('data-track-name') || 'audio').trim();
+      const filename = title + '.mp3';
+
       if (url) {
-        try {
-          const res = await fetch('/api/resolve?url=' + encodeURIComponent(url));
-          let dlUrl = url;
-          if (res.ok) {
-            const data = await res.json();
-            if (data.resolved) dlUrl = data.resolved;
-          }
-          const a = document.createElement('a');
-          a.href = dlUrl;
-          a.download = (ctxTargetTrack.getAttribute('data-track-name') || 'audio') + '.mp3';
-          a.target = '_blank';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        } catch (e) {
-          window.open(url, '_blank');
-        }
+        const downloadUrl = '/api/download?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(filename);
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = downloadUrl;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }, 60000);
       }
       const menu = document.getElementById('custom-context-menu');
       if (menu) menu.style.display = 'none';

@@ -854,21 +854,27 @@
       if (menu) menu.style.display = 'none';
     });
 
-    document.getElementById('ctx-download')?.addEventListener('click', function () {
+    document.getElementById('ctx-download')?.addEventListener('click', async function () {
       if (!ctxTargetTrack) return;
       const url = ctxTargetTrack.getAttribute('data-audio-url');
-      const title = (ctxTargetTrack.getAttribute('data-track-name') || 'audio').trim();
-      const filename = title + '.mp3';
-
       if (url) {
-        const downloadUrl = '/api/download?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(filename);
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = downloadUrl;
-        document.body.appendChild(iframe);
-        setTimeout(() => {
-          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        }, 60000);
+        try {
+          const res = await fetch('/api/resolve?url=' + encodeURIComponent(url));
+          let dlUrl = url;
+          if (res.ok) {
+            const data = await res.json();
+            if (data.resolved) dlUrl = data.resolved;
+          }
+          const a = document.createElement('a');
+          a.href = dlUrl;
+          a.download = (ctxTargetTrack.getAttribute('data-track-name') || 'audio') + '.mp3';
+          a.target = '_blank';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } catch (e) {
+          window.open(url, '_blank');
+        }
       }
       const menu = document.getElementById('custom-context-menu');
       if (menu) menu.style.display = 'none';

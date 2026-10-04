@@ -39,10 +39,11 @@
 #}
 <div class="Tooltip_tooltip__awbme Track_track__b2YEg{% if track.link %} has-audio{% endif %}"
      data-content="{{ track.notes | e }}"
-     {% if track.link %}data-audio-url="{{ track.link | e }}"{% endif %}>
+     {% if track.link %}data-audio-url="{{ track.link | e }}"{% endif %}
+     data-track-name="{{ track.name | e }}">
   <div style="flex:1;min-width:0;">
     <div>
-      <span>{{ track.name }}</span>
+      <span class="track-title">{{ track.name }}</span>
       {% for tag in track.tags %}
       <span class="Track_tag__bK7_v"
             style="color:{{ tag.fg }};background-color:{{ tag.bg }};">{{ tag.label }}</span>

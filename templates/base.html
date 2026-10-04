@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
   {% block pagecss %}{% endblock %}
   <style>
+    /* Mini Audio Player (Global Sticky Bottom) */
     #global-mini-player {
       display: none;
       position: fixed;
@@ -85,6 +86,7 @@
   </div>
 </div>
 
+<!-- Global Mini Audio Player -->
 <div id="global-mini-player">
   <button id="player-close-btn" onclick="closePlayer()" title="Close">✕</button>
   <div id="player-info-box">
@@ -96,11 +98,13 @@
 </div>
 
 <script>
+// ── Global Mouse Coordinates (For Tooltips) ──
 document.addEventListener('mousemove', function(e) {
   document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
   document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
 });
 
+// ── Audio Player & imgur.gg / pillows.su API Resolver ──
 function closePlayer() {
   const p = document.getElementById('global-mini-player');
   const a = document.getElementById('global-audio-el');
@@ -117,6 +121,77 @@ function isPlayableAudio(url) {
   return ['discord', 'discordapp', 'gofile', 'catbox', 'pixeldrain', 'pillowcase', 'pillows'].some(h => url.includes(h));
 }
 
+// ── Played Tracks Cache ──
+function getPlayedTracks() {
+  try {
+    return JSON.parse(localStorage.getItem('ktracker_played_tracks')) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function markPlayed(url, title) {
+  if (!url && !title) return;
+  try {
+    let played = getPlayedTracks();
+    let changed = false;
+    if (url && !played.includes(url)) {
+      played.push(url);
+      changed = true;
+    }
+    if (title && !played.includes(title)) {
+      played.push(title);
+      changed = true;
+    }
+    if (changed) {
+      localStorage.setItem('ktracker_played_tracks', JSON.stringify(played));
+    }
+  } catch (e) {}
+
+  applyPlayedState(url, title);
+}
+
+function applyPlayedState(url, title) {
+  document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
+    const elUrl = el.getAttribute('data-audio-url');
+    const titleEl = el.querySelector('.track-title') || el.querySelector('span');
+    const elTitle = (el.getAttribute('data-track-name') || titleEl?.textContent || '').trim();
+
+    if ((url && elUrl === url) || (title && elTitle === title)) {
+      el.classList.add('is-played');
+      if (titleEl) {
+        titleEl.classList.add('is-played');
+      }
+    }
+  });
+}
+
+function restorePlayedTracks() {
+  const played = getPlayedTracks();
+  if (!played.length) return;
+  const playedSet = new Set(played);
+
+  document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
+    const elUrl = el.getAttribute('data-audio-url');
+    const titleEl = el.querySelector('.track-title') || el.querySelector('span');
+    const elTitle = (el.getAttribute('data-track-name') || titleEl?.textContent || '').trim();
+
+    if ((elUrl && playedSet.has(elUrl)) || (elTitle && playedSet.has(elTitle))) {
+      el.classList.add('is-played');
+      if (titleEl) {
+        titleEl.classList.add('is-played');
+      }
+    }
+  });
+}
+
+// Restore on page load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', restorePlayedTracks);
+} else {
+  restorePlayedTracks();
+}
+
 async function playOrOpen(url, trackEl) {
   if (!url || url === '#' || url.toLowerCase() === 'n/a') return;
 
@@ -126,7 +201,7 @@ async function playOrOpen(url, trackEl) {
   const artistEl = document.getElementById('player-track-artist');
   const extLink = document.getElementById('player-external-link');
 
-  let title = trackEl?.querySelector('span')?.textContent?.trim() || 'Audio Track';
+  let title = trackEl?.querySelector('.track-title')?.textContent?.trim() || trackEl?.getAttribute('data-track-name') || trackEl?.querySelector('span')?.textContent?.trim() || 'Audio Track';
   let artists = trackEl?.querySelector('.Track_artists__94fRt')?.textContent?.trim() || '';
 
   extLink.href = url;
@@ -149,6 +224,7 @@ async function playOrOpen(url, trackEl) {
     console.warn('Backend resolve error:', err);
   }
 
+  // pillows.su / pillowcase.su fallback (if backend didn't resolve it)
   const pillowsMatch = streamUrl.match(/(?:pillows\.su|pillowcase\.su)\/f\/([a-zA-Z0-9_-]+)/);
   if (pillowsMatch) {
     streamUrl = `https://api.pillows.su/api/download/${pillowsMatch[1]}`;
@@ -161,15 +237,33 @@ async function playOrOpen(url, trackEl) {
     nameEl.textContent = title;
     artistEl.textContent = artists;
     audio.src = streamUrl;
+
+    // Mark track as played immediately
+    markPlayed(url, title);
+
     audio.play().catch(e => {
       console.log('Autoplay was prevented by browser:', e);
     });
   } else {
+    // Open non-audio external links in new tab
     player.style.display = 'none';
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
 
+// Global play event listener for audio element
+const globalAudioEl = document.getElementById('global-audio-el');
+if (globalAudioEl) {
+  globalAudioEl.addEventListener('play', function() {
+    const nameEl = document.getElementById('player-track-name');
+    const currentTitle = nameEl ? nameEl.textContent.replace(' (Loading...)', '').trim() : '';
+    const extLink = document.getElementById('player-external-link');
+    const currentUrl = extLink ? extLink.getAttribute('href') : '';
+    markPlayed(currentUrl, currentTitle);
+  });
+}
+
+// ── Global Delegated Click Listener ──
 document.addEventListener('click', function(e) {
   const trackEl = e.target.closest('.Track_track__b2YEg[data-audio-url]');
   if (!trackEl) return;

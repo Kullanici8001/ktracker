@@ -59,8 +59,23 @@
       </div>
     </summary>
     <div class="EraCard_tracks__UJDwG">
-      {% for track in era.tracks %}
-      {{ track_row(track) }}
+      {% for item in (era.track_items or era.tracks) %}
+        {% if item.is_subera %}
+        <div class="EraCard_subera__eqTaI">{{ item.name }}</div>
+        {% elif item.is_group %}
+        <details>
+          <summary class="TrackGroup_track_group__UFBSt arrow">{{ item.title }} ({{ item.count }}){% if item.all_snippets %} <span class="Track_tag__bK7_v" style="color:rgb(255, 255, 255);background-color:rgb(153, 0, 0)">Snippets</span>{% endif %}</summary>
+          <div class="TrackGroup_tracks__Vqn6H">
+            {% for track in item.tracks %}
+            {{ track_row(track) }}
+            {% endfor %}
+          </div>
+        </details>
+        {% elif item.track is defined %}
+        {{ track_row(item.track) }}
+        {% else %}
+        {{ track_row(item) }}
+        {% endif %}
       {% endfor %}
     </div>
   </details>
@@ -99,6 +114,7 @@ if (searchInput) {
       resultsInner.innerHTML = '<p style="padding:8px;color:lightgray">No results found.</p>';
     } else {
       hits.slice(0, 60).forEach(el => resultsInner.appendChild(el.cloneNode(true)));
+      if (typeof restorePlayedTracks === 'function') restorePlayedTracks();
     }
     resultsBox.style.display = 'block';
   });

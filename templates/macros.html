@@ -40,7 +40,10 @@
 <div class="Tooltip_tooltip__awbme Track_track__b2YEg{% if track.link %} has-audio{% endif %}"
      data-content="{{ track.notes | e }}"
      {% if track.link %}data-audio-url="{{ track.link | e }}"{% endif %}
-     data-track-name="{{ track.name | e }}">
+     data-track-name="{{ track.name | e }}"
+     data-track-artists="{{ track.artists | e }}"
+     data-track-size="{{ track.size or '' | e }}"
+     data-track-length="{{ track.length or '' | e }}">
   <div style="flex:1;min-width:0;">
     <div>
       <span class="track-title">{{ track.name }}</span>

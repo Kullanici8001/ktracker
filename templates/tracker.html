@@ -88,36 +88,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-// ── Search ──
-const searchInput  = document.getElementById('search-input');
-const resultsBox   = document.getElementById('search-results');
-const resultsInner = document.getElementById('search-results-inner');
-
-if (searchInput) {
-  const allTracks = Array.from(document.querySelectorAll('.EraCard_tracks__UJDwG .Track_track__b2YEg'));
-
-  searchInput.addEventListener('input', function() {
-    const q = this.value.trim().toLowerCase();
-    if (!q) { resultsBox.style.display = 'none'; return; }
-
-    const hits = allTracks.filter(el => {
-      const name    = el.querySelector('span')?.textContent?.toLowerCase() || '';
-      const artists = el.querySelector('.Track_artists__94fRt')?.textContent?.toLowerCase() || '';
-      const notes   = (el.dataset.content || '').toLowerCase();
-      return name.includes(q) || artists.includes(q) || notes.includes(q);
-    });
-
-    resultsInner.innerHTML = '';
-    if (!hits.length) {
-      resultsInner.innerHTML = '<p style="padding:8px;color:lightgray">No results found.</p>';
-    } else {
-      hits.slice(0, 60).forEach(el => resultsInner.appendChild(el.cloneNode(true)));
-      if (typeof restorePlayedTracks === 'function') restorePlayedTracks();
-    }
-    resultsBox.style.display = 'block';
-  });
-}
-</script>
-{% endblock %}
+{% block scripts %}{% endblock %}

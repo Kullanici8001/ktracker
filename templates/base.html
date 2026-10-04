@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,6 +25,7 @@
       align-items: center;
       gap: 14px;
     }
+
     #player-close-btn {
       background: none;
       border: none;
@@ -33,13 +35,16 @@
       line-height: 1;
       padding: 4px;
     }
+
     #player-close-btn:hover {
       color: #fff;
     }
+
     #player-info-box {
       flex: 1;
       min-width: 0;
     }
+
     #player-track-name {
       font-size: 13.5px;
       font-weight: 600;
@@ -48,6 +53,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     #player-track-artist {
       font-size: 12px;
       color: #888;
@@ -56,6 +62,7 @@
       text-overflow: ellipsis;
       margin-top: 2px;
     }
+
     #global-audio-el {
       flex: 2;
       min-width: 220px;
@@ -63,6 +70,7 @@
       height: 34px;
       outline: none;
     }
+
     #player-external-link {
       color: var(--dark-primary, #6ea8fe);
       font-size: 12.5px;
@@ -72,208 +80,224 @@
       border-radius: 4px;
       background: rgba(255, 255, 255, 0.05);
     }
+
     #player-external-link:hover {
       background: rgba(255, 255, 255, 0.1);
     }
   </style>
 </head>
+
 <body>
-<div id="__next">
-  <div class="_app_viewport__qiA88">
-    <div id="scrollable" class="_app_scrollable__CPTC5">
-      {% block content %}{% endblock %}
+  <div id="__next">
+    <div class="_app_viewport__qiA88">
+      <div id="scrollable" class="_app_scrollable__CPTC5">
+        {% block content %}{% endblock %}
+      </div>
     </div>
   </div>
-</div>
 
-<!-- Global Mini Audio Player -->
-<div id="global-mini-player">
-  <button id="player-close-btn" onclick="closePlayer()" title="Close">✕</button>
-  <div id="player-info-box">
-    <div id="player-track-name">Loading Track...</div>
-    <div id="player-track-artist"></div>
+  <!-- Global Mini Audio Player -->
+  <div id="global-mini-player">
+    <button id="player-close-btn" onclick="closePlayer()" title="Close">✕</button>
+    <div id="player-info-box">
+      <div id="player-track-name">Loading Track...</div>
+      <div id="player-track-artist"></div>
+    </div>
+    <audio id="global-audio-el" controls preload="auto"></audio>
+    <a id="player-external-link" href="#" target="_blank" rel="noopener">Open Link ↗</a>
   </div>
-  <audio id="global-audio-el" controls preload="auto"></audio>
-  <a id="player-external-link" href="#" target="_blank" rel="noopener">Open Link ↗</a>
-</div>
 
-<script>
-// ── Global Mouse Coordinates (For Tooltips) ──
-document.addEventListener('mousemove', function(e) {
-  document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
-  document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
-});
+  <script>
+    // ── Ultra-Fast Delegated Mouse Coordinates (For Tooltips) ──
+    document.addEventListener('mousemove', function (e) {
+      const tooltipEl = e.target.closest('.Tooltip_tooltip__awbme');
+      if (tooltipEl && tooltipEl.getAttribute('data-content')) {
+        tooltipEl.style.setProperty('--mouse-x', e.clientX + 'px');
+        tooltipEl.style.setProperty('--mouse-y', e.clientY + 'px');
+      }
+    }, { passive: true });
 
-// ── Audio Player & imgur.gg / pillows.su API Resolver ──
-function closePlayer() {
-  const p = document.getElementById('global-mini-player');
-  const a = document.getElementById('global-audio-el');
-  a.pause();
-  a.src = '';
-  p.style.display = 'none';
-}
-
-const AUDIO_EXTS = /\.(mp3|ogg|wav|flac|m4a|aac|opus)(\?.*)?$/i;
-
-function isPlayableAudio(url) {
-  if (!url) return false;
-  if (AUDIO_EXTS.test(url)) return true;
-  return ['discord', 'discordapp', 'gofile', 'catbox', 'pixeldrain', 'pillowcase', 'pillows'].some(h => url.includes(h));
-}
-
-// ── Played Tracks Cache ──
-function getPlayedTracks() {
-  try {
-    return JSON.parse(localStorage.getItem('ktracker_played_tracks')) || [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function markPlayed(url, title) {
-  if (!url && !title) return;
-  try {
-    let played = getPlayedTracks();
-    let changed = false;
-    if (url && !played.includes(url)) {
-      played.push(url);
-      changed = true;
+    // ── Audio Player & imgur.gg / pillows.su API Resolver ──
+    function closePlayer() {
+      const p = document.getElementById('global-mini-player');
+      const a = document.getElementById('global-audio-el');
+      a.pause();
+      a.src = '';
+      p.style.display = 'none';
     }
-    if (title && !played.includes(title)) {
-      played.push(title);
-      changed = true;
+
+    const AUDIO_EXTS = /\.(mp3|ogg|wav|flac|m4a|aac|opus)(\?.*)?$/i;
+
+    function isPlayableAudio(url) {
+      if (!url) return false;
+      if (AUDIO_EXTS.test(url)) return true;
+      return ['discord', 'discordapp', 'gofile', 'catbox', 'pixeldrain', 'pillowcase', 'pillows'].some(h => url.includes(h));
     }
-    if (changed) {
-      localStorage.setItem('ktracker_played_tracks', JSON.stringify(played));
-    }
-  } catch (e) {}
 
-  applyPlayedState(url, title);
-}
-
-function applyPlayedState(url, title) {
-  document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
-    const elUrl = el.getAttribute('data-audio-url');
-    const titleEl = el.querySelector('.track-title') || el.querySelector('span');
-    const elTitle = (el.getAttribute('data-track-name') || titleEl?.textContent || '').trim();
-
-    if ((url && elUrl === url) || (title && elTitle === title)) {
-      el.classList.add('is-played');
-      if (titleEl) {
-        titleEl.classList.add('is-played');
+    // ── Played Tracks Cache ──
+    function getPlayedTracks() {
+      try {
+        return JSON.parse(localStorage.getItem('ktracker_played_tracks')) || [];
+      } catch (e) {
+        return [];
       }
     }
-  });
-}
 
-function restorePlayedTracks() {
-  const played = getPlayedTracks();
-  if (!played.length) return;
-  const playedSet = new Set(played);
+    function markPlayed(url, title) {
+      if (!url && !title) return;
+      try {
+        let played = getPlayedTracks();
+        let changed = false;
+        if (url && !played.includes(url)) {
+          played.push(url);
+          changed = true;
+        }
+        if (title && !played.includes(title)) {
+          played.push(title);
+          changed = true;
+        }
+        if (changed) {
+          localStorage.setItem('ktracker_played_tracks', JSON.stringify(played));
+        }
+      } catch (e) { }
 
-  document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
-    const elUrl = el.getAttribute('data-audio-url');
-    const titleEl = el.querySelector('.track-title') || el.querySelector('span');
-    const elTitle = (el.getAttribute('data-track-name') || titleEl?.textContent || '').trim();
-
-    if ((elUrl && playedSet.has(elUrl)) || (elTitle && playedSet.has(elTitle))) {
-      el.classList.add('is-played');
-      if (titleEl) {
-        titleEl.classList.add('is-played');
-      }
+      applyPlayedState(url, title);
     }
-  });
-}
 
-// Restore on page load
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', restorePlayedTracks);
-} else {
-  restorePlayedTracks();
-}
+    function applyPlayedState(url, title) {
+      document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
+        const elUrl = el.getAttribute('data-audio-url');
+        const titleEl = el.querySelector('.track-title') || el.querySelector('span');
+        const elTitle = (el.getAttribute('data-track-name') || titleEl?.textContent || '').trim();
 
-async function playOrOpen(url, trackEl) {
-  if (!url || url === '#' || url.toLowerCase() === 'n/a') return;
-
-  const player = document.getElementById('global-mini-player');
-  const audio = document.getElementById('global-audio-el');
-  const nameEl = document.getElementById('player-track-name');
-  const artistEl = document.getElementById('player-track-artist');
-  const extLink = document.getElementById('player-external-link');
-
-  let title = trackEl?.querySelector('.track-title')?.textContent?.trim() || trackEl?.getAttribute('data-track-name') || trackEl?.querySelector('span')?.textContent?.trim() || 'Audio Track';
-  let artists = trackEl?.querySelector('.Track_artists__94fRt')?.textContent?.trim() || '';
-
-  extLink.href = url;
-  nameEl.textContent = title + ' (Loading...)';
-  artistEl.textContent = artists;
-  player.style.display = 'flex';
-
-  let streamUrl = url;
-
-  // Resolve via backend to bypass CORS
-  try {
-    const res = await fetch('/api/resolve?url=' + encodeURIComponent(url));
-    if (res.ok) {
-      const data = await res.json();
-      if (data.resolved && data.resolved !== url) {
-        streamUrl = data.resolved;
-      }
+        if ((url && elUrl === url) || (title && elTitle === title)) {
+          el.classList.add('is-played');
+          if (titleEl) {
+            titleEl.classList.add('is-played');
+          }
+        }
+      });
     }
-  } catch (err) {
-    console.warn('Backend resolve error:', err);
-  }
 
-  // pillows.su / pillowcase.su fallback (if backend didn't resolve it)
-  const pillowsMatch = streamUrl.match(/(?:pillows\.su|pillowcase\.su)\/f\/([a-zA-Z0-9_-]+)/);
-  if (pillowsMatch) {
-    streamUrl = `https://api.pillows.su/api/download/${pillowsMatch[1]}`;
-  }
+    function restorePlayedTracks() {
+      const played = getPlayedTracks();
+      if (!played.length) return;
+      const playedSet = new Set(played);
 
-  const imgurMatch = url.match(/imgur\.gg\/[a-zA-Z0-9_-]+/);
-  const canPlay = isPlayableAudio(streamUrl) || imgurMatch || pillowsMatch;
+      document.querySelectorAll('.Track_track__b2YEg').forEach(el => {
+        const elUrl = el.getAttribute('data-audio-url');
+        const titleEl = el.querySelector('.track-title') || el.querySelector('span');
+        const elTitle = (el.getAttribute('data-track-name') || titleEl?.textContent || '').trim();
 
-  if (canPlay) {
-    nameEl.textContent = title;
-    artistEl.textContent = artists;
-    audio.src = streamUrl;
+        if ((elUrl && playedSet.has(elUrl)) || (elTitle && playedSet.has(elTitle))) {
+          el.classList.add('is-played');
+          if (titleEl) {
+            titleEl.classList.add('is-played');
+          }
+        }
+      });
+    }
 
-    // Mark track as played immediately
-    markPlayed(url, title);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', restorePlayedTracks);
+    } else {
+      restorePlayedTracks();
+    }
 
-    audio.play().catch(e => {
-      console.log('Autoplay was prevented by browser:', e);
+    const playedObserver = new MutationObserver(() => {
+      if (document.querySelector('.track-title')) {
+        restorePlayedTracks();
+      }
     });
-  } else {
-    // Open non-audio external links in new tab
-    player.style.display = 'none';
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
-}
 
-// Global play event listener for audio element
-const globalAudioEl = document.getElementById('global-audio-el');
-if (globalAudioEl) {
-  globalAudioEl.addEventListener('play', function() {
-    const nameEl = document.getElementById('player-track-name');
-    const currentTitle = nameEl ? nameEl.textContent.replace(' (Loading...)', '').trim() : '';
-    const extLink = document.getElementById('player-external-link');
-    const currentUrl = extLink ? extLink.getAttribute('href') : '';
-    markPlayed(currentUrl, currentTitle);
-  });
-}
+    playedObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
 
-// ── Global Delegated Click Listener ──
-document.addEventListener('click', function(e) {
-  const trackEl = e.target.closest('.Track_track__b2YEg[data-audio-url]');
-  if (!trackEl) return;
-  const url = trackEl.getAttribute('data-audio-url');
-  if (url && url !== '#' && url.toLowerCase() !== 'n/a') {
-    e.preventDefault();
-    playOrOpen(url, trackEl);
-  }
-});
-</script>
-{% block scripts %}{% endblock %}
+    async function playOrOpen(url, trackEl) {
+      if (!url || url === '#' || url.toLowerCase() === 'n/a') return;
+
+      const player = document.getElementById('global-mini-player');
+      const audio = document.getElementById('global-audio-el');
+      const nameEl = document.getElementById('player-track-name');
+      const artistEl = document.getElementById('player-track-artist');
+      const extLink = document.getElementById('player-external-link');
+
+      let title = trackEl?.querySelector('.track-title')?.textContent?.trim() || trackEl?.getAttribute('data-track-name') || trackEl?.querySelector('span')?.textContent?.trim() || 'Audio Track';
+      let artists = trackEl?.querySelector('.Track_artists__94fRt')?.textContent?.trim() || '';
+
+      extLink.href = url;
+      nameEl.textContent = title + ' (Loading...)';
+      artistEl.textContent = artists;
+      player.style.display = 'flex';
+
+      let streamUrl = url;
+
+      // Resolve via backend to bypass CORS
+      try {
+        const res = await fetch('/api/resolve?url=' + encodeURIComponent(url));
+        if (res.ok) {
+          const data = await res.json();
+          if (data.resolved && data.resolved !== url) {
+            streamUrl = data.resolved;
+          }
+        }
+      } catch (err) {
+        console.warn('Backend resolve error:', err);
+      }
+
+      // pillows.su / pillowcase.su fallback (if backend didn't resolve it)
+      const pillowsMatch = streamUrl.match(/(?:pillows\.su|pillowcase\.su)\/f\/([a-zA-Z0-9_-]+)/);
+      if (pillowsMatch) {
+        streamUrl = `https://api.pillows.su/api/download/${pillowsMatch[1]}`;
+      }
+
+      const imgurMatch = url.match(/imgur\.gg\/[a-zA-Z0-9_-]+/);
+      const canPlay = isPlayableAudio(streamUrl) || imgurMatch || pillowsMatch;
+
+      if (canPlay) {
+        nameEl.textContent = title;
+        artistEl.textContent = artists;
+        audio.src = streamUrl;
+
+        // Mark track as played immediately
+        markPlayed(url, title);
+
+        audio.play().catch(e => {
+          console.log('Autoplay was prevented by browser:', e);
+        });
+      } else {
+        // Open non-audio external links in new tab
+        player.style.display = 'none';
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    }
+
+    // Global play event listener for audio element
+    const globalAudioEl = document.getElementById('global-audio-el');
+    if (globalAudioEl) {
+      globalAudioEl.addEventListener('play', function () {
+        const nameEl = document.getElementById('player-track-name');
+        const currentTitle = nameEl ? nameEl.textContent.replace(' (Loading...)', '').trim() : '';
+        const extLink = document.getElementById('player-external-link');
+        const currentUrl = extLink ? extLink.getAttribute('href') : '';
+        markPlayed(currentUrl, currentTitle);
+      });
+    }
+
+    // ── Global Delegated Click Listener ──
+    document.addEventListener('click', function (e) {
+      const trackEl = e.target.closest('.Track_track__b2YEg[data-audio-url]');
+      if (!trackEl) return;
+      const url = trackEl.getAttribute('data-audio-url');
+      if (url && url !== '#' && url.toLowerCase() !== 'n/a') {
+        e.preventDefault();
+        playOrOpen(url, trackEl);
+      }
+    });
+  </script>
+  {% block scripts %}{% endblock %}
 </body>
+
 </html>

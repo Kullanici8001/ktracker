@@ -121,20 +121,113 @@ def get_xlsx_cell_images(sheet_id: str) -> dict[tuple[str, int, str], str]:
     return cell_images
 
 
+def is_image_link(url: str) -> bool:
+    """Checks if a URL points to an image based on extension or image hosting service."""
+    if not url or not isinstance(url, str):
+        return False
+    u = url.strip()
+    if not (u.startswith("http://") or u.startswith("https://") or u.startswith("/static/")):
+        return False
+
+    u_lower = u.lower()
+    clean_path = u_lower.split("?")[0].split("#")[0]
+    img_exts = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".avif", ".bmp")
+    if any(clean_path.endswith(ext) for ext in img_exts):
+        return True
+
+    img_hosts = (
+        "imgur.com", "i.imgur.com", "imgur.gg", "i.imgur.gg",
+        "ibb.co", "i.ibb.co",
+        "postimg.cc", "i.postimg.cc",
+        "googleusercontent.com",
+        "cdn.discordapp.com", "media.discordapp.net",
+        "twimg.com", "pbs.twimg.com",
+        "cloudinary.com",
+        "preview.redd.it", "i.redd.it", "reddit.com/media",
+        "nocookie.net", "wikimedia.org", "wikipedia.org",
+        "tenor.com", "giphy.com"
+    )
+    if any(host in u_lower for host in img_hosts):
+        audio_video_exts = (".mp3", ".wav", ".m4a", ".flac", ".ogg", ".opus", ".mp4", ".mov")
+        if not any(clean_path.endswith(ext) for ext in audio_video_exts):
+            return True
+
+    if u.startswith("/static/"):
+        return True
+
+    return False
+
+
+def find_row_cover(row: list[str]) -> tuple[str, int]:
+    """
+    Scans row columns to find a cover image URL and the column index where it was found.
+    Returns (cover_url, col_idx).
+    """
+    # Priority order: E(4), F(5), D(3), G(6), C(2), H(7), I(8)...
+    priority_indices = [4, 5, 3, 6, 2, 7, 8, 9]
+    all_indices = priority_indices + [i for i in range(len(row)) if i not in priority_indices]
+
+    # Pass 1: Strict image link check
+    for idx in all_indices:
+        if idx >= len(row) or idx in (0, 1):
+            continue
+        val = safe(row, idx)
+        if val and is_image_link(val):
+            return resolve_media_url(val), idx
+
+    # Pass 2: Any web URL in columns that isn't a google doc or discord/patreon link
+    for idx in all_indices:
+        if idx >= len(row) or idx in (0, 1):
+            continue
+        val = safe(row, idx)
+        if val and (val.startswith("http://") or val.startswith("https://") or val.startswith("/static/")):
+            v_lower = val.lower()
+            if not any(skip in v_lower for skip in ("docs.google.com", "discord.gg", "patreon.com", "twitter.com", "x.com")):
+                return resolve_media_url(val), idx
+
+    return "", -1
+
+
+def find_era_description(row: list[str], cover_col_idx: int) -> str:
+    """
+    Finds the era description / notes from the banner row.
+    Ignores stats (Col A), era name (Col B), cover column, URLs, and pure date strings.
+    """
+    candidates = []
+    for idx in range(2, len(row)):
+        if idx == cover_col_idx:
+            continue
+        val = safe(row, idx)
+        if not val:
+            continue
+        if val.startswith("http://") or val.startswith("https://") or val.startswith("/static/"):
+            continue
+        if "notes about" in val.lower() or val.lower() in ("notes", "description", "n/a", "-"):
+            continue
+        is_date = bool(re.match(r"^\s*\(\s*\d{1,2}/\d{1,2}/\d{2,4}\)", val))
+        candidates.append((len(val), is_date, val))
+
+    if not candidates:
+        return ""
+
+    candidates.sort(key=lambda x: (not x[1], x[0]), reverse=True)
+    return candidates[0][2]
+
+
 def fetch_sheet_data(sheet_id: str, title: str) -> list[list[str]]:
     """Bir sekmeyi API ile JSON dizisi olarak indir ve hücre içi resimlerle zenginleştir."""
     if not title or title == "0":
         return []
-    
+
     cell_images = {} # Kullanıcı isteği: resim işi şimdilik pas geçildi, sayfalar anında yüklenir
     title_lower = title.strip().lower()
 
     import urllib.parse
     title_enc = urllib.parse.quote(title)
-    
-    fields = "sheets.data.rowData.values(formattedValue,hyperlink)"
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}?includeGridData=true&ranges={title_enc}!A:J&key={GOOGLE_SHEETS_API_KEY}&fields={fields}"
-    
+
+    fields = "sheets.data.rowData.values(formattedValue,hyperlink,userEnteredValue.formulaValue)"
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}?includeGridData=true&ranges={title_enc}!A:L&key={GOOGLE_SHEETS_API_KEY}&fields={fields}"
+
     try:
         r = requests.get(url, timeout=30)
         if r.status_code == 200:
@@ -142,7 +235,7 @@ def fetch_sheet_data(sheet_id: str, title: str) -> list[list[str]]:
             sheets = data.get("sheets", [])
             if not sheets:
                 return []
-            
+
             rows = []
             for row_data in sheets[0].get("data", []):
                 for row_idx, row in enumerate(row_data.get("rowData", []), start=1):
@@ -150,16 +243,30 @@ def fetch_sheet_data(sheet_id: str, title: str) -> list[list[str]]:
                     for i, cell in enumerate(row.get("values", [])):
                         val = cell.get("formattedValue", "")
                         link = cell.get("hyperlink", "")
-                        if link and i in (4, 7, 8, 9): # E, H, I, J columns can have hyperlinks replaced with their URL
-                            val = link
+                        form = cell.get("userEnteredValue", {}).get("formulaValue", "")
+
+                        # Extract image URL from formula if present (=IMAGE(...))
+                        if form and "image(" in form.lower():
+                            m = re.search(r'https?://[^\s"\',)]+', form)
+                            if m:
+                                val = m.group(0)
+                        elif link:
+                            # Replace with hyperlink if val is empty or link is audio/image/web URL
+                            if not val or is_image_link(link) or any(h in link.lower() for h in ("http://", "https://")):
+                                val = link
+                        elif form and is_image_link(form):
+                            m = re.search(r'https?://[^\s"\',)]+', form)
+                            if m:
+                                val = m.group(0)
+
                         col_letter = chr(65 + i)
-                        img_url = cell_images.get((title_lower, row_idx, col_letter))
+                        img_url = cell_images.get((title_lower, row_idx, col_letter)) or cell_images.get((row_idx, col_letter))
                         if img_url:
                             val = img_url
                         new_row.append(val)
-                    while len(new_row) < 10:
+                    while len(new_row) < 12:
                         col_letter = chr(65 + len(new_row))
-                        img_url = cell_images.get((title_lower, row_idx, col_letter), "")
+                        img_url = cell_images.get((title_lower, row_idx, col_letter), "") or cell_images.get((row_idx, col_letter), "")
                         new_row.append(img_url)
                     rows.append(new_row)
             return rows
@@ -173,6 +280,7 @@ def safe(row: list[str], idx: int) -> str:
         return row[idx].strip()
     except IndexError:
         return ""
+
 
 
 # ─── URL Çözümleme (imgur.gg, ibb.co vb.) ────────────────────────────────────
@@ -295,7 +403,8 @@ def to_rgb_str(c_dict: dict | None, default: str = "rgb(24,24,24)") -> str:
 def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
     """
     Google Sheets API v4 ile tablonun her era için tanımlanmış
-    orijinal hücre arka plan (bg) ve yazı rengini (fg), ayrıca bannerdaki E kolonundan coverı çeker.
+    orijinal hücre arka plan (bg) ve yazı rengini, ayrıca bannerdaki cover görselini
+    (E, F, D, G vb. hangi kolonda olursa olsun) çeker.
     """
     if sheet_id in _COLOR_CACHE:
         return _COLOR_CACHE[sheet_id]
@@ -306,7 +415,7 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
         fields = "sheets.properties.title,sheets.data.rowData.values(formattedValue,hyperlink,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,userEnteredValue.formulaValue)"
         api_url = (
             f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}"
-            f"?includeGridData=true&ranges=A:E&key={GOOGLE_SHEETS_API_KEY}&fields={fields}"
+            f"?includeGridData=true&ranges=A:L&key={GOOGLE_SHEETS_API_KEY}&fields={fields}"
         )
         r = requests.get(api_url, timeout=20)
         if r.status_code == 200:
@@ -322,24 +431,63 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
                             fmt = vals[0].get("userEnteredFormat", {}) or vals[1].get("userEnteredFormat", {})
                             bg = fmt.get("backgroundColor")
                             fg = fmt.get("textFormat", {}).get("foregroundColor")
-                            
+
                             cover_url = ""
-                            if len(vals) >= 5:
-                                e_val = vals[4].get("userEnteredValue", {}).get("formulaValue", "")
-                                if e_val and "http" in e_val:
-                                    m = re.search(r'"(https?://[^"]+)"', e_val)
+                            # Scan all columns for cover image!
+                            priority_indices = [4, 5, 3, 6, 2, 7, 8, 9]
+                            all_indices = priority_indices + [i for i in range(len(vals)) if i not in priority_indices]
+
+                            # Pass 1: Check formula (=IMAGE), hyperlink, or formattedValue that is an image link
+                            for c_idx in all_indices:
+                                if c_idx >= len(vals) or c_idx in (0, 1):
+                                    continue
+                                c_cell = vals[c_idx]
+                                form_val = c_cell.get("userEnteredValue", {}).get("formulaValue", "")
+                                if form_val and "image(" in form_val.lower():
+                                    m = re.search(r'https?://[^\s"\',)]+', form_val)
                                     if m:
-                                        cover_url = m.group(1)
-                                if not cover_url:
-                                    e_link = vals[4].get("hyperlink", "")
-                                    if e_link and "http" in e_link:
-                                        cover_url = e_link
-                                if not cover_url:
-                                    e_fmt = vals[4].get("formattedValue", "")
-                                    if e_fmt and "http" in e_fmt:
-                                        cover_url = e_fmt
+                                        cover_url = m.group(0)
+                                        break
+                                hl_val = c_cell.get("hyperlink", "")
+                                if hl_val and is_image_link(hl_val):
+                                    cover_url = hl_val
+                                    break
+                                fmt_val = c_cell.get("formattedValue", "")
+                                if fmt_val and is_image_link(fmt_val):
+                                    cover_url = fmt_val
+                                    break
+                                if form_val and is_image_link(form_val):
+                                    m = re.search(r'https?://[^\s"\',)]+', form_val)
+                                    if m:
+                                        cover_url = m.group(0)
+                                        break
+
+                            # Pass 2: In-cell drawing from xlsx_images in ANY column of this row
                             if not cover_url:
-                                cover_url = xlsx_images.get((sheet_title, row_idx, "E"), "")
+                                for c_let in ("E", "F", "D", "G", "C", "H", "B", "A", "I", "J"):
+                                    c_img = xlsx_images.get((sheet_title, row_idx, c_let)) or xlsx_images.get((row_idx, c_let))
+                                    if c_img:
+                                        cover_url = c_img
+                                        break
+
+                            # Pass 3: Any web URL in columns C..L (excluding google/discord links)
+                            if not cover_url:
+                                for c_idx in all_indices:
+                                    if c_idx >= len(vals) or c_idx in (0, 1):
+                                        continue
+                                    c_cell = vals[c_idx]
+                                    for candidate in (
+                                        c_cell.get("hyperlink", ""),
+                                        c_cell.get("formattedValue", ""),
+                                        c_cell.get("userEnteredValue", {}).get("formulaValue", "")
+                                    ):
+                                        if candidate and (candidate.startswith("http://") or candidate.startswith("https://") or candidate.startswith("/static/")):
+                                            c_lower = candidate.lower()
+                                            if not any(skip in c_lower for skip in ("docs.google.com", "discord.gg", "patreon.com", "twitter.com", "x.com")):
+                                                cover_url = candidate
+                                                break
+                                    if cover_url:
+                                        break
 
                             # Use same permissive keywords as is_stat_row to match banner rows
                             v0_lower = v0.lower()
@@ -350,8 +498,6 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
                             if (has_keyword and has_number and len(v0_lower) > 10):
                                 era_name = v1.split("\n")[0].strip()
                                 if era_name:
-                                    if not cover_url:
-                                        cover_url = xlsx_images.get((sheet_title, row_idx, "E"), "")
                                     era_colors[era_name.lower()] = {
                                         "bg": to_rgb_str(bg, "rgb(24,24,24)"),
                                         "fg": to_rgb_str(fg, "rgb(255,255,255)"),
@@ -399,8 +545,8 @@ def make_tag(label: str) -> dict:
 
 # ─── Track Name / Artists / Aliases Parser ───────────────────────────────────
 
-def parse_name_field(raw: str) -> tuple[str, str, str]:
-    """Col B → (title, artists, aliases)"""
+def parse_name_field(raw: str) -> tuple[str, str, str, list[str]]:
+    """Col B → (title, artists, aliases, aliases_list)"""
     lines = raw.split("\n")
     first_line = lines[0].strip()
     extra_lines = [l.strip() for l in lines[1:] if l.strip()]
@@ -424,11 +570,148 @@ def parse_name_field(raw: str) -> tuple[str, str, str]:
         else:
             cleaned = p.strip("()").strip()
             if cleaned:
-                aliases_list.append(cleaned)
+                for sub in cleaned.split(","):
+                    sub_clean = sub.strip()
+                    if sub_clean:
+                        aliases_list.append(sub_clean)
 
     artists = " ".join(artists_list)
     aliases = ", ".join(aliases_list)
-    return title, artists, aliases
+    return title, artists, aliases, aliases_list
+
+
+def extract_base_title(title: str) -> str:
+    """
+    Extracts base song title by stripping version indicators like [V1], [V27], (V1), etc.
+    Examples:
+      'Title 3131 [V1]'         -> 'Title 3131'
+      'Ghetto University [V27]' -> 'Ghetto University'
+      'All Of The Lights [V31]' -> 'All Of The Lights'
+      'Eyes Closed [V1]'        -> 'Eyes Closed'
+    """
+    t = title.strip()
+    t = re.sub(r"\s*\[\s*v?\d+[^\]]*\]\s*$", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s*\(\s*v?\d+\s*\)\s*$", "", t, flags=re.IGNORECASE)
+    t = t.strip()
+    return t if t else title
+
+
+def is_same_song_group(leader: dict, candidate: dict) -> bool:
+    """
+    Matches TrackerHub's exact isSameGroup condition:
+    leader.key === candidate.key ||
+    leader.aliases.includes(candidate.key) ||
+    candidate.aliases.includes(leader.key)
+    """
+    k_lead = leader["base_name"].strip().lower()
+    k_cand = candidate["base_name"].strip().lower()
+    if not k_lead or not k_cand:
+        return False
+
+    generic_words = {"???", "untitled", "unknown", "track", "intro", "outro", "instrumental", "freestyle", "skit", "snippet"}
+    # If both are generic words like "???", only group if exact title matches
+    if k_lead in generic_words or k_cand in generic_words:
+        return leader["name"].strip().lower() == candidate["name"].strip().lower()
+
+    if k_lead == k_cand:
+        return True
+
+    # Check aliases
+    lead_aliases = [a.strip().lower() for a in leader.get("aliases_list", []) if a.strip()]
+    cand_aliases = [a.strip().lower() for a in candidate.get("aliases_list", []) if a.strip()]
+
+    if k_cand in lead_aliases or k_lead in cand_aliases:
+        return True
+
+    # Also check base title of aliases
+    lead_aliases_base = [extract_base_title(a).strip().lower() for a in lead_aliases]
+    cand_aliases_base = [extract_base_title(a).strip().lower() for a in cand_aliases]
+
+    if k_cand in lead_aliases_base or k_lead in cand_aliases_base:
+        return True
+
+    return False
+
+
+def group_era_tracks(eras: list[dict]) -> None:
+    """
+    Groups songs that share the same base title or aliases within each era section.
+    Generates era['track_items'] containing track groups (details accordion) or standalone tracks.
+    """
+    for era in eras:
+        tracks = era.get("tracks", [])
+        if not tracks:
+            era["track_items"] = []
+            continue
+
+        for t in tracks:
+            if not t.get("is_subera"):
+                t["base_name"] = extract_base_title(t["name"])
+
+        items = []
+        section_tracks = []
+
+        def flush_section():
+            if not section_tracks:
+                return
+            visited = set()
+            for i, leader in enumerate(section_tracks):
+                if i in visited:
+                    continue
+
+                group = [leader]
+                visited.add(i)
+
+                for j in range(i + 1, len(section_tracks)):
+                    if j not in visited:
+                        cand = section_tracks[j]
+                        if is_same_song_group(leader, cand):
+                            group.append(cand)
+                            visited.add(j)
+
+                if len(group) > 1:
+                    unique_keys = []
+                    for g_tr in group:
+                        bk = g_tr["base_name"]
+                        if bk and not any(bk.lower() == u.lower() for u in unique_keys):
+                            unique_keys.append(bk)
+                    title_str = ", ".join(unique_keys) if unique_keys else leader["base_name"]
+
+                    all_snippets = all(
+                        any(tag.get("label", "").lower() == "snippet" for tag in g_tr.get("tags", []))
+                        for g_tr in group
+                    )
+
+                    items.append({
+                        "is_group": True,
+                        "is_subera": False,
+                        "title": title_str,
+                        "count": len(group),
+                        "all_snippets": all_snippets,
+                        "tracks": group
+                    })
+                else:
+                    items.append({
+                        "is_group": False,
+                        "is_subera": False,
+                        "track": leader
+                    })
+            section_tracks.clear()
+
+        for t in tracks:
+            if t.get("is_subera"):
+                flush_section()
+                items.append({
+                    "is_group": False,
+                    "is_subera": True,
+                    "name": t["name"],
+                    "track": t
+                })
+            else:
+                section_tracks.append(t)
+
+        flush_section()
+        era["track_items"] = items
 
 
 # ─── Satır Sınıflandırıcılar ──────────────────────────────────────────────────
@@ -483,8 +766,8 @@ def parse_tracker_csv(rows: list[list[str]]) -> list[dict]:
         # ── 1. Era Banner Satırı (Stat Satırı) ──
         if is_stat_row(row):
             era_name = col_b.split("\n")[0].strip() if col_b else col_a
-            desc = col_f if col_f and "notes about" not in col_f.lower() else col_c
-            cover = resolve_media_url(col_e) if ("http" in col_e or "/static/" in col_e) else ""
+            cover, cover_col = find_row_cover(row)
+            desc = find_era_description(row, cover_col)
 
             current_era = {
                 "era": era_name,
@@ -503,8 +786,8 @@ def parse_tracker_csv(rows: list[list[str]]) -> list[dict]:
             if any(k in col_a.lower() for k in ("links", "update notes", "tracker guidelines")):
                 continue
 
-            desc = col_f if col_f and "notes about" not in col_f.lower() else col_c
-            cover = resolve_media_url(col_e) if ("http" in col_e or "/static/" in col_e) else ""
+            cover, cover_col = find_row_cover(row)
+            desc = find_era_description(row, cover_col)
 
             current_era = {
                 "era": col_a,
@@ -598,7 +881,7 @@ def parse_tracker_csv(rows: list[list[str]]) -> list[dict]:
                     leak_date = val
                     break
 
-            title, artists, aliases = parse_name_field(col_b)
+            title, artists, aliases, aliases_list = parse_name_field(col_b)
 
             current_era["tracks"].append({
                 "name": title,
@@ -606,12 +889,14 @@ def parse_tracker_csv(rows: list[list[str]]) -> list[dict]:
                 "notes": col_c,
                 "tags": tags,
                 "aliases": aliases,
+                "aliases_list": aliases_list,
                 "length": length or col_d,
                 "leak_date": leak_date or col_e,
                 "link": track_link,
                 "is_subera": False,
             })
 
+    group_era_tracks(eras)
     return eras
 
 
@@ -716,8 +1001,8 @@ _FALLBACK_PALETTE = [
 
 def apply_styling(sheet_id: str, eras: list[dict]):
     """
-    Era bannerındaki (Col E) orijinal kapakları ve hücre renklerini uygular.
-    Art sekmesinden kapak çekme tamamen kaldırıldı.
+    Era bannerındaki orijinal kapakları ve hücre renklerini uygular.
+    Kapak görseli hangi kolonda (E, F, D, G vb.) olursa olsun dinamik tespit edilir.
     """
     colors = get_sheet_era_colors(sheet_id)
 
@@ -897,4 +1182,6 @@ def api_resolve():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=3131)
+    import os
+    port = int(os.environ.get("PORT", 5001))
+    app.run(debug=True, port=port)

@@ -816,6 +816,16 @@ def is_header_row(row: list[str]) -> bool:
     if ("name" in nonempty or "title" in nonempty) and len(nonempty & (header_a | header_b | header_c | header_other)) >= 2:
         return True
 
+    # Some trackers have a weird metadata/header row where the Name cell is
+    # actually a Google Sheets URL, followed by labels such as Quality, File
+    # Date, Notes or Track Length.  This is NOT a track and must not become
+    # the first item under an ``Era`` heading.
+    row_text = " ".join(values)
+    has_sheet_url = "docs.google.com/spreadsheets" in row_text.lower()
+    metadata_hits = sum(1 for v in nonempty if v in header_other or v in header_c)
+    if has_sheet_url and metadata_hits >= 1:
+        return True
+
     return False
 
 

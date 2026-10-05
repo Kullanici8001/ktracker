@@ -220,7 +220,10 @@ def fetch_sheet_data(sheet_id: str, title: str) -> list[list[str]]:
     if not title or title == "0":
         return []
 
-    cell_images = {} # Kullanıcı isteği: resim işi şimdilik pas geçildi, sayfalar anında yüklenir
+    # Google Sheets API in-cell/drawing images vermediği için XLSX exporttan
+    # hücre -> yerel /static/cache/... eşlemesini çıkar. Bu özellikle bazı
+    # tracker'larda resimlerin hiç görünmemesi sorununu çözer.
+    cell_images = get_xlsx_cell_images(sheet_id)
     title_lower = title.strip().lower()
 
     import urllib.parse

@@ -773,26 +773,50 @@ def is_era_only_row(row: list[str]) -> bool:
 
 
 def is_header_row(row: list[str]) -> bool:
-    """Return True for the spreadsheet column-header row.
+    """Return True when a row belongs to the spreadsheet column headers.
 
-    Some trackers start with headers such as `Category | Name | Description`
-    instead of the usual `Era | Name ...`. That header must never become an
-    actual era/category in the rendered tracker.
+    Trackers are not perfectly consistent: some have a normal
+    ``Category | Name | Description`` header, while others split the header
+    over two rows, e.g. a first row containing only ``Era`` followed by a row
+    containing ``Name``, ``Quality`` and ``Track Length``.  The latter used to
+    be mistaken for a real era + subgroup.
     """
-    a = safe(row, 0).strip().lower()
-    b = safe(row, 1).strip().lower()
-    c = safe(row, 2).strip().lower()
+    def norm(value: str) -> str:
+        # Header cells sometimes contain a second line such as
+        # ``Name\n(Join The Discord!)``.  Only the visible header matters.
+        return (value or "").strip().split("\n", 1)[0].strip().lower()
+
+    values = [norm(safe(row, i)) for i in range(min(len(row), 12))]
+    a, b, c = (values + [""] * 3)[:3]
+
     header_a = {"category", "era", "album", "type"}
     header_b = {"name", "title", "track", "song", "track name"}
     header_c = {"description", "notes", "comment", "comments"}
+    header_other = {
+        "available", "availability", "quality", "links", "link",
+        "track length", "length", "file date", "date", "artist",
+        "artists", "status", "source",
+    }
+
+    # Standard one-row headers.
     if a in header_a and b in header_b:
         return True
     if a in header_a and c in header_c and (not b or b in header_b):
         return True
-    # Also catch a fully generic header row by looking for several known labels.
-    labels = {a, b, c, safe(row, 3).strip().lower(), safe(row, 4).strip().lower(), safe(row, 5).strip().lower()}
-    known = {"category", "era", "album", "name", "title", "description", "available", "quality", "links"}
-    return len(labels & known) >= 3 and ("name" in labels or "title" in labels)
+
+    # Some trackers have a standalone first header cell: just ``Era`` or
+    # ``Category``.  Treat it as a header only when the row contains no other
+    # actual data, so a legitimate era with additional content is untouched.
+    if a in header_a and all(not v for v in values[1:]):
+        return True
+
+    # Multi-column / split header rows.  This catches e.g.
+    # ``Name | Quality | ... | Track Length`` even when the first cell is empty.
+    nonempty = {v for v in values if v}
+    if ("name" in nonempty or "title" in nonempty) and len(nonempty & (header_a | header_b | header_c | header_other)) >= 2:
+        return True
+
+    return False
 
 
 def is_subgroup_row(row: list[str]) -> bool:

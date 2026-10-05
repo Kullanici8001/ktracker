@@ -2,9 +2,9 @@
 <div class="Header_header___G6og">
   <a class="Header_index__FE__u" href="/">
     <h1 class="Header_title__0V7v_">
-      <img alt="KTracker Logo" loading="lazy" width="36" height="36"
-           class="Header_logo__e8eyg"
-           src="{{ url_for('static', filename='img/logo.webp') }}">{{ page_title }}</h1>
+      <img alt="KTracker Logo" loading="lazy" width="36" height="36" class="Header_logo__e8eyg"
+        src="{{ url_for('static', filename='img/logo.webp') }}">{{ page_title }}
+    </h1>
   </a>
   <div class="Links_links__UToMx Header_links__rYnfM">
     <a href="/" class="{% if section == 'index' %}nav-active{% endif %}">Index</a>
@@ -14,42 +14,41 @@
     <a href="/{{ sheet_id }}/best" class="{% if section == 'best' %}nav-active{% endif %}">Best Of</a>
     <a href="/{{ sheet_id }}/art" class="{% if section == 'art' %}nav-active{% endif %}">Art</a>
     <a href="/{{ sheet_id }}/tracklists" class="{% if section == 'tracklists' %}nav-active{% endif %}">Tracklists</a>
-    <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}" target="_blank" rel="noopener noreferrer">Google Sheets</a>
+    <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}" target="_blank" rel="noopener noreferrer">Google
+      Sheets</a>
     {% endif %}
   </div>
 </div>
 {% endmacro %}
 
 
-{% macro track_row(track) %}
+{% macro track_row(track, era=None) %}
 {% if track.is_subera %}
 {# Subgroup header — EraCard_subera__eqTaI #}
 <div class="EraCard_subera__eqTaI">{{ track.name }}</div>
 {% else %}
 {#
-  Track row:
-  <div class="Tooltip_tooltip__awbme Track_track__b2YEg" data-content="notes">
-    <div>
-      <div><span>Track Name</span> <span class="Track_tag__bK7_v" ...>TAG</span></div>
-      <div class="Track_artists__94fRt">(feat. X) (prod. Y)</div>
-      <div class="Track_aliases__yo_m5">(Nina Chop)</div>
-    </div>
-    <div class="Track_length__KUiUO">3:22</div>
+Track row:
+<div class="Tooltip_tooltip__awbme Track_track__b2YEg" data-content="notes">
+  <div>
+    <div><span>Track Name</span> <span class="Track_tag__bK7_v" ...>TAG</span></div>
+    <div class="Track_artists__94fRt">(feat. X) (prod. Y)</div>
+    <div class="Track_aliases__yo_m5">(Nina Chop)</div>
   </div>
+  <div class="Track_length__KUiUO">3:22</div>
+</div>
 #}
 <div class="Tooltip_tooltip__awbme Track_track__b2YEg{% if track.link %} has-audio{% endif %}"
-     data-content="{{ track.notes | e }}"
-     {% if track.link %}data-audio-url="{{ track.link | e }}"{% endif %}
-     data-track-name="{{ track.name | e }}"
-     data-track-artists="{{ track.artists | e }}"
-     data-track-size="{{ track.size or '' | e }}"
-     data-track-length="{{ track.length or '' | e }}">
+  data-content="{{ track.notes | e }}" {% if track.link %}data-audio-url="{{ track.link | e }}" {% endif %}
+  data-track-name="{{ track.name | e }}" data-track-artists="{{ track.artists | e }}"
+  data-track-size="{{ track.size or '' | e }}" data-track-length="{{ track.length or '' | e }}" {% if era %}
+  data-era-name="{{ era.era | e }}" data-era-cover="{{ era.cover or '' | e }}"
+  data-era-bg="{{ era.bg_color or '' | e }}" data-era-fg="{{ era.text_color or '' | e }}" {% endif %}>
   <div style="flex:1;min-width:0;">
     <div>
       <span class="track-title">{{ track.name }}</span>
       {% for tag in track.tags %}
-      <span class="Track_tag__bK7_v"
-            style="color:{{ tag.fg }};background-color:{{ tag.bg }};">{{ tag.label }}</span>
+      <span class="Track_tag__bK7_v" style="color:{{ tag.fg }};background-color:{{ tag.bg }};">{{ tag.label }}</span>
       {% endfor %}
     </div>
     {% if track.artists %}

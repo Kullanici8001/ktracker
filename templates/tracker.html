@@ -19,9 +19,8 @@
 
 <div class="unreleased_container__2SPrV">
   <div class="Search_search_container__ALRBY">
-    <input id="search-input" type="text" placeholder="Search"
-           class="Search_search__53TKp"
-           autocomplete="off" spellcheck="false">
+    <input id="search-input" type="text" placeholder="Search" class="Search_search__53TKp" autocomplete="off"
+      spellcheck="false">
   </div>
 
   <!-- Search results -->
@@ -42,10 +41,8 @@
   <details class="EraCard_era__RaoRE">
     <summary style="background-color:{{ era.bg_color }}">
       {% if era.cover %}
-      <img alt="{{ era.era }} cover" loading="lazy"
-           width="136" height="136"
-           class="EraCard_cover__huWx9"
-           src="{{ era.cover }}">
+      <img alt="{{ era.era }} cover" loading="lazy" width="136" height="136" class="EraCard_cover__huWx9"
+        src="{{ era.cover }}">
       {% endif %}
       <div>
         <div class="EraCard_title__a_skU">
@@ -60,22 +57,24 @@
     </summary>
     <div class="EraCard_tracks__UJDwG">
       {% for item in (era.track_items or era.tracks) %}
-        {% if item.is_subera %}
-        <div class="EraCard_subera__eqTaI">{{ item.name }}</div>
-        {% elif item.is_group %}
-        <details>
-          <summary class="TrackGroup_track_group__UFBSt arrow">{{ item.title }} ({{ item.count }}){% if item.all_snippets %} <span class="Track_tag__bK7_v" style="color:rgb(255, 255, 255);background-color:rgb(153, 0, 0)">Snippets</span>{% endif %}</summary>
-          <div class="TrackGroup_tracks__Vqn6H">
-            {% for track in item.tracks %}
-            {{ track_row(track) }}
-            {% endfor %}
-          </div>
-        </details>
-        {% elif item.track is defined %}
-        {{ track_row(item.track) }}
-        {% else %}
-        {{ track_row(item) }}
-        {% endif %}
+      {% if item.is_subera %}
+      <div class="EraCard_subera__eqTaI">{{ item.name }}</div>
+      {% elif item.is_group %}
+      <details>
+        <summary class="TrackGroup_track_group__UFBSt arrow">{{ item.title }} ({{ item.count }}){% if item.all_snippets
+          %} <span class="Track_tag__bK7_v"
+            style="color:rgb(255, 255, 255);background-color:rgb(153, 0, 0)">Snippets</span>{% endif %}</summary>
+        <div class="TrackGroup_tracks__Vqn6H">
+          {% for track in item.tracks %}
+          {{ track_row(track, era) }}
+          {% endfor %}
+        </div>
+      </details>
+      {% elif item.track is defined %}
+      {{ track_row(item.track, era) }}
+      {% else %}
+      {{ track_row(item, era) }}
+      {% endif %}
       {% endfor %}
     </div>
   </details>

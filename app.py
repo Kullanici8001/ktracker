@@ -502,14 +502,26 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
                         has_number = bool(re.search(r'\d+', v0_lower))
 
                         # Real era/banner rows.
-                        if has_keyword and has_number and len(v0_lower) > 10:
-                            era_name = v1.split("\n")[0].strip() if v1 else v0.split("\n")[0].strip()
-                            if era_name:
-                                era_colors[era_name.lower()] = {
-                                    "bg": to_rgb_str(bg, "rgb(24,24,24)"),
-                                    "fg": to_rgb_str(fg, "rgb(255,255,255)"),
-                                    "banner_cover": cover_url,
-                                }
+                        era_name = v1.split("\n")[0].strip() if v1 else ""
+
+                        has_track_info = any(
+                            vals[i].get("formattedValue", "").strip()
+                            or vals[i].get("hyperlink", "").strip()
+                            or vals[i].get("userEnteredValue", {}).get("formulaValue", "").strip()
+                            for i in range(3, len(vals))
+                        )
+
+                        if (
+                            era_name
+                            and not is_header_row([v0, v1, ""])
+                            and not has_track_info
+                            and (bg or fg or cover_url)
+                        ):
+                            era_colors[era_name.lower()] = {
+                                "bg": to_rgb_str(bg, "rgb(24,24,24)"),
+                                "fg": to_rgb_str(fg, "rgb(255,255,255)"),
+                                "banner_cover": cover_url,
+                            }
 
                         # Category/subgroup rows. A can be empty OR contain an
                         # IMAGE() URL; C is allowed to contain the description,

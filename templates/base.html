@@ -1003,7 +1003,17 @@
       const href = link.getAttribute('href');
       const target = link.getAttribute('target');
 
-      if (!href || href.startsWith('#') || href.startsWith('javascript:') || target === '_blank' || link.hasAttribute('download')) {
+      if (
+        !href ||
+        href.startsWith('#') ||
+        href.startsWith('javascript:') ||
+        target === '_blank' ||
+        link.hasAttribute('download') ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
         return;
       }
 

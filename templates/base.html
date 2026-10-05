@@ -252,10 +252,12 @@
         padding: 10px 14px;
         gap: 10px;
       }
+
       .Player_center__controls {
         grid-column: 1 / -1;
         order: 2;
       }
+
       .player-volume-wrap {
         display: none;
       }
@@ -276,8 +278,10 @@
   <div id="global-custom-player" class="Player_player__Lp72A" style="display: none;">
     <!-- Left: Track info & cover -->
     <div class="Player_info__PCFRT">
-      <img id="player-cover-img" class="Player_cover__zyHrw" src="/static/img/logo.webp" alt="Cover" style="display:none;">
-      <div id="player-cover-placeholder" class="Player_cover__zyHrw" style="display:flex;align-items:center;justify-content:center;background:#222;font-size:22px;">🎵</div>
+      <img id="player-cover-img" class="Player_cover__zyHrw" src="/static/img/logo.webp" alt="Cover"
+        style="display:none;">
+      <div id="player-cover-placeholder" class="Player_cover__zyHrw"
+        style="display:flex;align-items:center;justify-content:center;background:#222;font-size:22px;">🎵</div>
       <div style="min-width:0;flex:1;">
         <div id="player-track-name" class="Player_title__dDcQD" title="Track Name">Loading Track...</div>
         <div id="player-track-artist" class="Player_artists__aka37" title="Artists"></div>
@@ -291,36 +295,40 @@
         <!-- Shuffle -->
         <button id="player-shuffle-btn" class="player-btn" title="Shuffle" type="button">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+            <path
+              d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
           </svg>
         </button>
         <!-- Prev -->
         <button id="player-prev-btn" class="player-btn" title="Previous Track" type="button">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
           </svg>
         </button>
         <!-- Play / Pause Circular White Button -->
         <button id="player-play-btn" class="player-play-circle" title="Play / Pause" type="button">
-          <svg id="player-play-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;margin-left:2px;">
-            <path d="M8 5v14l11-7z"/>
+          <svg id="player-play-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+            style="display:none;margin-left:2px;">
+            <path d="M8 5v14l11-7z" />
           </svg>
-          <svg id="player-pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:block;">
-            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          <svg id="player-pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+            style="display:block;">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
           </svg>
         </button>
         <!-- Next -->
         <button id="player-next-btn" class="player-btn" title="Next Track" type="button">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
           </svg>
         </button>
         <!-- Repeat -->
         <button id="player-repeat-btn" class="player-btn" title="Repeat (Off)" type="button">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+            <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
           </svg>
-          <span id="player-repeat-badge" style="display:none;position:absolute;font-size:9px;font-weight:700;top:-2px;right:-2px;background:#1db954;color:#000;border-radius:50%;width:12px;height:12px;line-height:12px;text-align:center;">1</span>
+          <span id="player-repeat-badge"
+            style="display:none;position:absolute;font-size:9px;font-weight:700;top:-2px;right:-2px;background:#1db954;color:#000;border-radius:50%;width:12px;height:12px;line-height:12px;text-align:center;">1</span>
         </button>
       </div>
 
@@ -328,7 +336,8 @@
       <div class="Player_slider__Rxlnz">
         <span id="player-current-time" class="player-time">0:00</span>
         <div class="player-progress-wrap">
-          <input type="range" id="player-progress-bar" min="0" max="100" value="0" step="0.1" class="player-range-input">
+          <input type="range" id="player-progress-bar" min="0" max="100" value="0" step="0.1"
+            class="player-range-input">
         </div>
         <span id="player-duration" class="player-time">0:00</span>
       </div>
@@ -339,12 +348,14 @@
       <div class="player-volume-wrap">
         <button id="player-vol-btn" class="player-btn" title="Mute/Unmute" type="button">
           <svg id="player-vol-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            <path
+              d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
           </svg>
         </button>
         <input type="range" id="player-volume-bar" min="0" max="1" step="0.01" value="1" class="player-volume-input">
       </div>
-      <button id="player-close-btn" class="player-btn" onclick="closePlayer()" title="Close Player" type="button">✕</button>
+      <button id="player-close-btn" class="player-btn" onclick="closePlayer()" title="Close Player"
+        type="button">✕</button>
     </div>
 
     <!-- Hidden native audio element -->
@@ -763,6 +774,8 @@
       if (!trackEl) return;
       const url = trackEl.getAttribute('data-audio-url');
       if (url && url !== '#' && url.toLowerCase() !== 'n/a') {
+        if (e.metaKey || e.ctrlKey) return;
+
         e.preventDefault();
         playOrOpen(url, trackEl);
       }
@@ -889,7 +902,7 @@
 
       const allTracks = Array.from(document.querySelectorAll('.EraCard_tracks__UJDwG .Track_track__b2YEg, .unreleased_container__2SPrV .Track_track__b2YEg'));
 
-      searchInput.addEventListener('input', function() {
+      searchInput.addEventListener('input', function () {
         const q = this.value.trim().toLowerCase();
         if (!q) {
           resultsBox.style.display = 'none';

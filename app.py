@@ -407,16 +407,18 @@ def to_rgb_str(c_dict: dict | None, default: str = "rgb(24,24,24)") -> str:
 
 
 def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
-    """
-    Google Sheets API v4 ile tablonun her era için tanımlanmış
-    orijinal hücre arka plan (bg) ve yazı rengini, ayrıca bannerdaki cover görselini
-    (E, F, D, G vb. hangi kolonda olursa olsun) çeker.
+    """Read era/category colors directly from the Google Sheet.
+
+    No tracker-specific palette is used here. Actual banner/stat rows keep
+    their original behavior, while category/subgroup rows also inherit the
+    colors from the formatted cell in column B (or A when B has no explicit
+    formatting). This keeps colors tracker-specific instead of hardcoding
+    another tracker's palette into the site.
     """
     if sheet_id in _COLOR_CACHE:
         return _COLOR_CACHE[sheet_id]
 
     era_colors: dict[str, dict[str, str]] = {}
-    xlsx_images = {}
     try:
         fields = "sheets.properties.title,sheets.data.rowData.values(formattedValue,hyperlink,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,userEnteredValue.formulaValue)"
         api_url = (
@@ -427,94 +429,92 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
         if r.status_code == 200:
             data = r.json()
             for sheet in data.get("sheets", []):
-                sheet_title = sheet.get("properties", {}).get("title", "").strip().lower()
                 for r_data in sheet.get("data", []):
                     for row_idx, row in enumerate(r_data.get("rowData", []), start=1):
                         vals = row.get("values", [])
-                        if len(vals) >= 2:
-                            v0 = vals[0].get("formattedValue", "")
-                            v1 = vals[1].get("formattedValue", "")
-                            fmt = vals[0].get("userEnteredFormat", {}) or vals[1].get("userEnteredFormat", {})
-                            bg = fmt.get("backgroundColor")
-                            fg = fmt.get("textFormat", {}).get("foregroundColor")
+                        if len(vals) < 2:
+                            continue
 
-                            cover_url = ""
-                            # Scan all columns for cover image!
-                            priority_indices = [4, 5, 3, 6, 2, 7, 8, 9]
-                            all_indices = priority_indices + [i for i in range(len(vals)) if i not in priority_indices]
+                        v0 = vals[0].get("formattedValue", "")
+                        v1 = vals[1].get("formattedValue", "")
 
-                            # Pass 1: Check formula (=IMAGE), hyperlink, or formattedValue that is an image link
-                            for c_idx in all_indices:
-                                if c_idx >= len(vals) or c_idx in (0, 1):
-                                    continue
-                                c_cell = vals[c_idx]
-                                form_val = c_cell.get("userEnteredValue", {}).get("formulaValue", "")
-                                if form_val and "image(" in form_val.lower():
-                                    m = re.search(r'https?://[^\s"\',)]+', form_val)
-                                    if m:
-                                        cover_url = m.group(0)
-                                        break
-                                hl_val = c_cell.get("hyperlink", "")
-                                if hl_val and is_image_link(hl_val):
-                                    cover_url = hl_val
+                        fmt_a = vals[0].get("userEnteredFormat", {}) or {}
+                        fmt_b = vals[1].get("userEnteredFormat", {}) or {}
+                        # For category/subgroup rows the visible label is in B,
+                        # so prefer B's explicit formatting.
+                        if fmt_b.get("backgroundColor") or fmt_b.get("textFormat", {}).get("foregroundColor"):
+                            fmt = fmt_b
+                        else:
+                            fmt = fmt_a
+                        bg = fmt.get("backgroundColor")
+                        fg = fmt.get("textFormat", {}).get("foregroundColor")
+
+                        # Keep the original banner cover discovery for real
+                        # stat/banner rows only.
+                        cover_url = ""
+                        priority_indices = [4, 5, 3, 6, 2, 7, 8, 9]
+                        all_indices = priority_indices + [i for i in range(len(vals)) if i not in priority_indices]
+                        for c_idx in all_indices:
+                            if c_idx >= len(vals) or c_idx in (0, 1):
+                                continue
+                            c_cell = vals[c_idx]
+                            form_val = c_cell.get("userEnteredValue", {}).get("formulaValue", "")
+                            if form_val and "image(" in form_val.lower():
+                                m = re.search(r'https?://[^\s"\',)]+', form_val)
+                                if m:
+                                    cover_url = m.group(0)
                                     break
-                                fmt_val = c_cell.get("formattedValue", "")
-                                if fmt_val and is_image_link(fmt_val):
-                                    cover_url = fmt_val
+                            hl_val = c_cell.get("hyperlink", "")
+                            if hl_val and is_image_link(hl_val):
+                                cover_url = hl_val
+                                break
+                            fmt_val = c_cell.get("formattedValue", "")
+                            if fmt_val and is_image_link(fmt_val):
+                                cover_url = fmt_val
+                                break
+                            if form_val and is_image_link(form_val):
+                                m = re.search(r'https?://[^\s"\',)]+', form_val)
+                                if m:
+                                    cover_url = m.group(0)
                                     break
-                                if form_val and is_image_link(form_val):
-                                    m = re.search(r'https?://[^\s"\',)]+', form_val)
-                                    if m:
-                                        cover_url = m.group(0)
-                                        break
 
-                            # Pass 2: In-cell drawing from xlsx_images in ANY column of this row
-                            if not cover_url:
-                                for c_let in ("E", "F", "D", "G", "C", "H", "B", "A", "I", "J"):
-                                    c_img = xlsx_images.get((sheet_title, row_idx, c_let)) or xlsx_images.get((row_idx, c_let))
-                                    if c_img:
-                                        cover_url = c_img
-                                        break
+                        v0_lower = v0.lower()
+                        keywords = ["full", "partial", "snippet", "session", "bounce", "tagged", "og file", "unavailable"]
+                        has_keyword = any(k in v0_lower for k in keywords)
+                        has_number = bool(re.search(r'\d+', v0_lower))
 
-                            # Pass 3: Any web URL in columns C..L (excluding google/discord links)
-                            if not cover_url:
-                                for c_idx in all_indices:
-                                    if c_idx >= len(vals) or c_idx in (0, 1):
-                                        continue
-                                    c_cell = vals[c_idx]
-                                    for candidate in (
-                                        c_cell.get("hyperlink", ""),
-                                        c_cell.get("formattedValue", ""),
-                                        c_cell.get("userEnteredValue", {}).get("formulaValue", "")
-                                    ):
-                                        if candidate and (candidate.startswith("http://") or candidate.startswith("https://") or candidate.startswith("/static/")):
-                                            c_lower = candidate.lower()
-                                            if not any(skip in c_lower for skip in ("docs.google.com", "discord.gg", "patreon.com", "twitter.com", "x.com")):
-                                                cover_url = candidate
-                                                break
-                                    if cover_url:
-                                        break
+                        # Real era/banner rows.
+                        if has_keyword and has_number and len(v0_lower) > 10:
+                            era_name = v1.split("\n")[0].strip() if v1 else v0.split("\n")[0].strip()
+                            if era_name:
+                                era_colors[era_name.lower()] = {
+                                    "bg": to_rgb_str(bg, "rgb(24,24,24)"),
+                                    "fg": to_rgb_str(fg, "rgb(255,255,255)"),
+                                    "banner_cover": cover_url,
+                                }
 
-                            # Use same permissive keywords as is_stat_row to match banner rows
-                            v0_lower = v0.lower()
-                            keywords = ["full", "partial", "snippet", "session", "bounce", "tagged", "og file", "unavailable"]
-                            has_keyword = any(k in v0_lower for k in keywords)
-                            has_number = bool(re.search(r'\d+', v0_lower))
-
-                            if (has_keyword and has_number and len(v0_lower) > 10):
-                                era_name = v1.split("\n")[0].strip()
-                                if era_name:
-                                    era_colors[era_name.lower()] = {
-                                        "bg": to_rgb_str(bg, "rgb(24,24,24)"),
-                                        "fg": to_rgb_str(fg, "rgb(255,255,255)"),
-                                        "banner_cover": cover_url
-                                    }
+                        # Category/subgroup rows. A can be empty OR contain an
+                        # IMAGE() URL; C is allowed to contain the description,
+                        # but D:L must be empty (same structural rule as parser).
+                        a_is_empty_or_image = (not v0.strip()) or is_image_link(v0)
+                        has_track_info = any(
+                            vals[i].get("formattedValue", "").strip()
+                            or vals[i].get("hyperlink", "").strip()
+                            or vals[i].get("userEnteredValue", {}).get("formulaValue", "").strip()
+                            for i in range(3, len(vals))
+                        )
+                        if a_is_empty_or_image and v1.strip() and not has_track_info:
+                            subgroup_name = v1.split("\n")[0].strip()
+                            if subgroup_name and not is_header_row([v0, v1]):
+                                era_colors[subgroup_name.lower()] = {
+                                    "bg": to_rgb_str(bg, "rgb(24,24,24)"),
+                                    "fg": to_rgb_str(fg, "rgb(255,255,255)"),
+                                }
     except Exception as e:
         print("Renk çekme hatası:", e)
 
     _COLOR_CACHE[sheet_id] = era_colors
     return era_colors
-
 
 
 # ─── Kapak Resimleri: Yalnızca Era Banner (Col E) Kullanılır ─────────────────
@@ -772,11 +772,40 @@ def is_era_only_row(row: list[str]) -> bool:
     return bool(col_a) and not bool(col_b) and not is_stat_row(row)
 
 
+def is_header_row(row: list[str]) -> bool:
+    """Return True for the spreadsheet column-header row.
+
+    Some trackers start with headers such as `Category | Name | Description`
+    instead of the usual `Era | Name ...`. That header must never become an
+    actual era/category in the rendered tracker.
+    """
+    a = safe(row, 0).strip().lower()
+    b = safe(row, 1).strip().lower()
+    c = safe(row, 2).strip().lower()
+    header_a = {"category", "era", "album", "type"}
+    header_b = {"name", "title", "track", "song", "track name"}
+    header_c = {"description", "notes", "comment", "comments"}
+    if a in header_a and b in header_b:
+        return True
+    if a in header_a and c in header_c and (not b or b in header_b):
+        return True
+    # Also catch a fully generic header row by looking for several known labels.
+    labels = {a, b, c, safe(row, 3).strip().lower(), safe(row, 4).strip().lower(), safe(row, 5).strip().lower()}
+    known = {"category", "era", "album", "name", "title", "description", "available", "quality", "links"}
+    return len(labels & known) >= 3 and ("name" in labels or "title" in labels)
+
+
 def is_subgroup_row(row: list[str]) -> bool:
     col_a = safe(row, 0)
     col_b = safe(row, 1)
+    # Google Sheets IMAGE() cells are converted by fetch_sheet_data() into an
+    # image URL in column A. Structurally, that still means "A is empty" for
+    # a subgroup/category row.
+    a_is_empty_or_image = (not col_a) or is_image_link(col_a)
+    # C may contain the subgroup description; actual track data normally starts
+    # at D.
     has_track_info = any(bool(safe(row, i)) for i in range(3, len(row)))
-    return not col_a and bool(col_b) and not has_track_info
+    return a_is_empty_or_image and bool(col_b) and not has_track_info
 
 
 # ─── Tracker CSV Parser ───────────────────────────────────────────────────────
@@ -786,10 +815,14 @@ def parse_tracker_csv(rows: list[list[str]]) -> list[dict]:
     current_era: dict | None = None
     last_era_name: str = ""
 
-    if rows and rows[0] and safe(rows[0], 0).lower() in ("era", "album"):
+    # Drop one or more spreadsheet header rows. Some trackers use
+    # `Category | Name | Description | ...`, while others use `Era | ...`.
+    while rows and is_header_row(rows[0]):
         rows = rows[1:]
 
     for row in rows:
+        if is_header_row(row):
+            continue
         if not any(c.strip() for c in row):
             continue
 
@@ -1026,15 +1059,11 @@ def parse_tracklists_csv(rows: list[list[str]]) -> list[dict]:
 
 # ─── Renk ve Veri Birleştirme ─────────────────────────────────────────────────
 
-_FALLBACK_PALETTE = [
-    {"bg": "rgb(166,27,0)",   "fg": "rgb(246,178,107)"},
-    {"bg": "rgb(87,19,20)",   "fg": "rgb(238,162,1)"},
-    {"bg": "rgb(41,10,6)",    "fg": "rgb(184,146,20)"},
-    {"bg": "rgb(65,34,87)",   "fg": "rgb(234,80,171)"},
-    {"bg": "rgb(195,205,204)","fg": "rgb(241,0,1)"},
-    {"bg": "rgb(55,120,196)", "fg": "rgb(218,185,87)"},
-    {"bg": "rgb(104,110,250)","fg": "rgb(255,255,255)"},
-]
+_FALLBACK_COLOR = {
+    "bg": "rgb(24,24,24)",
+    "fg": "rgb(255,255,255)",
+}
+
 
 _TRACKERAPI_ERA_IMAGES_CACHE: dict[str, dict[str, str]] = {}
 
@@ -1084,9 +1113,10 @@ def apply_styling(sheet_id: str, eras: list[dict]):
             if banner_cover:
                 era["cover"] = resolve_media_url(banner_cover)
         else:
-            fb = _FALLBACK_PALETTE[i % len(_FALLBACK_PALETTE)]
-            era["bg_color"] = fb["bg"]
-            era["text_color"] = fb["fg"]
+            # Never borrow a palette from another tracker. If the Sheet has no
+            # explicit color for this era/category, use the neutral site fallback.
+            era["bg_color"] = _FALLBACK_COLOR["bg"]
+            era["text_color"] = _FALLBACK_COLOR["fg"]
 
         # 2. Cover görseli: Bannerdan gelmediyse TrackerAPI'den tamamla
         if not era.get("cover"):

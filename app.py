@@ -420,7 +420,7 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
 
     era_colors: dict[str, dict[str, str]] = {}
     try:
-        fields = "sheets.properties.title,sheets.data.rowData.values(formattedValue,hyperlink,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,userEnteredValue.formulaValue)"
+        fields = "sheets.properties.title,sheets.data.rowData.values(formattedValue,hyperlink,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,effectiveFormat.backgroundColor,effectiveFormat.textFormat.foregroundColor,userEnteredValue.formulaValue)"
         api_url = (
             f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}"
             f"?includeGridData=true&ranges=A:L&key={GOOGLE_SHEETS_API_KEY}&fields={fields}"
@@ -440,12 +440,30 @@ def get_sheet_era_colors(sheet_id: str) -> dict[str, dict[str, str]]:
 
                         fmt_a = vals[0].get("userEnteredFormat", {}) or {}
                         fmt_b = vals[1].get("userEnteredFormat", {}) or {}
-                        # For category/subgroup rows the visible label is in B,
-                        # so prefer B's explicit formatting.
-                        if fmt_b.get("backgroundColor") or fmt_b.get("textFormat", {}).get("foregroundColor"):
+
+                        eff_a = vals[0].get("effectiveFormat", {}) or {}
+                        eff_b = vals[1].get("effectiveFormat", {}) or {}
+
+                        # Prefer B because the era/category name is displayed there.
+                        # First use explicit formatting, then fall back to effective formatting.
+                        if (
+                            fmt_b.get("backgroundColor")
+                            or fmt_b.get("textFormat", {}).get("foregroundColor")
+                        ):
                             fmt = fmt_b
-                        else:
+                        elif (
+                            eff_b.get("backgroundColor")
+                            or eff_b.get("textFormat", {}).get("foregroundColor")
+                        ):
+                            fmt = eff_b
+                        elif (
+                            fmt_a.get("backgroundColor")
+                            or fmt_a.get("textFormat", {}).get("foregroundColor")
+                        ):
                             fmt = fmt_a
+                        else:
+                            fmt = eff_a
+
                         bg = fmt.get("backgroundColor")
                         fg = fmt.get("textFormat", {}).get("foregroundColor")
 
